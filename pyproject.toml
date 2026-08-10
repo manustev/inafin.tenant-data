@@ -16,6 +16,9 @@ dependencies = [
     "structlog>=24.4.0",
     "tenacity>=8.5.0",
     "python-dotenv>=1.0.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "strawberry-graphql[fastapi]>=0.240.0",
 ]
 
 [project.optional-dependencies]
@@ -26,6 +29,7 @@ dev = [
     "mypy>=1.10.0",
     "ruff>=0.5.0",
     "boto3-stubs[s3]>=1.35.0",
+    "httpx>=0.27.0",
 ]
 
 [project.scripts]
@@ -65,6 +69,12 @@ ignore = [
 
 [tool.ruff.lint.isort]
 known-first-party = ["src"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI's own idiom for form/query/dependency defaults — evaluated once at
+# route-registration time, not per-request, so B008's "function call in a
+# default" concern does not apply to these specific callables.
+extend-immutable-calls = ["fastapi.Form", "fastapi.Depends", "fastapi.Query"]
 
 # ---------------------------------------------------------------------------
 # Mypy

@@ -627,11 +627,10 @@ class RegisterLoader:
         nothing, so every resubmission of such a row would insert a duplicate
         instead of superseding.
 
-        That fixes the LOOKUP. It does not fix the INDEX: a partial unique index
-        treats two NULLs as distinct, so the database will not refuse the
-        duplicate if two loads race. TODO.md carries it; the fix is
-        NULLS NOT DISTINCT (PG15+) on those three indexes, which is a migration,
-        not a loader change.
+        That fixes the LOOKUP. Tenant migration 014 fixes the INDEX side of the
+        same gap — a partial unique index treats two NULLs as distinct by
+        default, so without `NULLS NOT DISTINCT` the database would not refuse
+        a duplicate if two loads raced. Both now agree.
         """
         spec = self._spec
         envelope: dict[str, object] = {

@@ -54,9 +54,10 @@ Each of these was expensive to establish. Do not "fix" one without reading why.
 ## Workflow
 
 ```bash
-make ci                      # ruff + mypy + 410 tests + isolation + static gates
+make ci                      # ruff + mypy + 422 tests + isolation + static gates
 make migrate                 # shared chain, all tenants, drift check
 make provision SLUG=acme
+uvicorn src.api.app:app      # the ingestion surface (REST + GraphQL)
 ```
 
 - Migrations are **checksum-pinned**. Never edit an applied migration — add a new
@@ -69,11 +70,65 @@ make provision SLUG=acme
   fails, restore. A suite nobody has seen fail is indistinguishable from
   `assert True`.
 
-## Current state (2026-08-10)
+## Current state (2026-08-10, second session)
 
-**Read `HANDOFF-2026-08-10.md` for this session's detail; this section is the
-durable summary.** `make ci` is green from a clean cluster — **410 tests**.
-The repo is now under git (`main`, one `initial commit`, clean tree).
+**Read `HANDOFF-2026-08-10.md` for the first session's detail; this section is
+the durable summary, now covering both sessions run today.** `make ci` is
+green from a clean cluster — **422 tests** (up from 410).
+
+**The ingestion surface is now built** — `src/api/` — REST upload/trigger/status
++ GraphQL reads, the item that was "Next session starts here" item 2. Scoped
+deliberately narrow, three decisions made explicitly before building:
+
+- **Upload and status are real**, wrapping `BronzeIngestionService.receive`
+  and `SilverReader.artefact_outcome` unchanged. **Trigger is a stub** —
+  `POST /artefacts/{id}/trigger` records intent in a new INSERT-only table
+  (tenant migration `015_load_trigger.sql`) and calls no loader. There is
+  still no `doc_type_code -> loader` dispatcher (register spec vs
+  `promote.py`'s archetype-1 path vs `SalesRegisterLoader` vs a future
+  entitlement path — nothing in the registry names which one handles a
+  type). New `TODO.md` entry, "Ingestion surface — what's built and what's
+  still missing".
+- **Auth is a pluggable placeholder**, not real security. `src/api/auth.py`'s
+  `AuthPort` Protocol (same idiom as `VirusScanPort`) has one adapter,
+  `StaticTokenAuth` — a static bearer-token → tenant-slug map from
+  `Settings.api_tenant_tokens`. ARCHITECTURE.md 5.6 wants a signed Keycloak
+  JWT claim; that is unbuilt. The tenant slug is still never a
+  caller-supplied parameter — it only ever comes from the resolved token —
+  which a mutation check confirmed: breaking `StaticTokenAuth.resolve` to
+  ignore which token was presented failed both the unknown-token-401 test
+  and the cross-tenant isolation test, restored clean.
+- **GraphQL was built now, not deferred** — `strawberry-graphql`, mounted at
+  `/graphql`, resolvers wrapping `SilverReader`/`EntitlementReader` with no
+  new read logic invented. `Role.RECON` already IS "reader over `v1_` views
+  only, nothing else in Silver" (confirmed against
+  `migrations/shared/001_app.sql` step 5) — no new Postgres role was needed.
+
+Verified with a real running server, not just `TestClient`: `uvicorn
+src.api.app:app`, curl upload → status → trigger → 401-without-auth →
+GraphQL query, all against a live cluster.
+
+**#3 on the old "Next session" list (JSON adapter) turned out to already be
+done** — NDJSON, added last session, IS the JSON support the design calls
+for ("JSON resolved to NDJSON"); confirmed with the user, no new code needed.
+
+**#6 (`NULLS NOT DISTINCT`) is also closed this session** — tenant migration
+`014_nulls_not_distinct.sql` adds it to the three natural-key indexes that
+carry a nullable `supplier_gstin` column (`purchase_register`,
+`creditor_ageing_report`, `common_input_service_invoice`). Mutation-checked:
+dropping the clause fails exactly
+`test_the_index_rejects_two_live_nulls_the_lookup_would_have_matched`,
+restoring fixes it. Along the way, the gate test itself had the same
+"commits its probe row on failure" bug the earlier session's `_probe_rejects`
+docstring already warned about — caught and fixed before it shipped, same
+unconditional-`Rollback` pattern.
+
+---
+
+### First session's summary (`HANDOFF-2026-08-10.md`)
+
+`make ci` was green from a clean cluster — **410 tests**.
+The repo was put under git this session (`main`, one `initial commit`, clean tree).
 
 **TYPED-TABLES-PLAN.md §10 is now fully built, steps 1–5 all done.** Step 4
 (the last one) landed this session: the archetype-1 write path for
@@ -180,8 +235,10 @@ first. It still describes the archetype tables.
 ## Next session starts here
 
 **`TYPED-TABLES-PLAN.md` §10 is fully built — all five steps done as of
-2026-08-10.** Do not re-propose any part of it; read `HANDOFF-2026-08-10.md`
-for what changed and why before touching anything below.
+2026-08-10.** Do not re-propose any part of it. The ingestion surface
+(`src/api/`) is now built too, REST + GraphQL — read this session's summary
+above before touching anything below; `HANDOFF-2026-08-10.md` is the first
+session's detail only.
 
 Priority order for what's actually open:
 
@@ -190,28 +247,32 @@ Priority order for what's actually open:
    `PURCHASE_REGISTER`. If `inafinplatform/v2` reads that view, this is a
    breaking change nobody downstream has agreed to yet — a conversation, not
    a code task, and it should happen before v2 integration work resumes.
-2. **The ingestion surface.** Still no HTTP API, no worker, nothing watching
-   object storage — every loader (register or archetype-1) is a library a
-   caller must invoke directly. Shape agreed in principle 2026-08-07: a
-   control plane (upload, trigger, status) over HTTP, with the Bronze→Silver
-   load staying in-process psycopg — the upsert is a transaction with
-   `SET LOCAL ROLE` inside it, and per-row HTTP cannot hold that open. Not
-   built, not decided in detail. Full argument in
-   `HANDOFF-2026-08-07.md`, "Then: the ingestion surface".
-3. **JSON/Excel adapters for the loader path.** CSV and NDJSON both work
-   (2026-08-10). Excel is unscoped and unstarted.
+2. **The Bronze→Silver dispatcher.** `POST /artefacts/{id}/trigger` is a
+   stub — it records intent (`load_trigger`, tenant migration `015`) and
+   calls no loader. Nothing in the registry names which loader class handles
+   a `doc_type_code` (only `table_name`, a register-family signal, and
+   `archetype`, a structural-family signal). This is real, undone design
+   work, tracked in `TODO.md` under "Ingestion surface — what's built and
+   what's still missing".
+3. **Real auth for the ingestion surface.** `src/api/auth.py`'s
+   `StaticTokenAuth` is a placeholder (static bearer-token → slug map) —
+   ARCHITECTURE.md 5.6 wants a signed Keycloak JWT claim, verified at "the
+   gateway". A second `AuthPort` adapter, not a route-handler rewrite.
 4. **`entitlement_instrument`** (tenant `006`, 33 HYBRID types) — the
    typed-tables verdict for A1 does not automatically carry; the reference
    schema is A1-only and never touched this table. Still open.
 5. **The 63 HYBRID types generally** — table-per-type may be overkill where
    the field set is three columns. Still open.
-6. **`NULLS NOT DISTINCT` migration** (found 2026-08-07) — a unique index
-   containing a nullable key column does not enforce itself. Cheap now while
-   tables are empty; needs a duplicate sweep first once real data lands.
+6. **Excel adapter for the loader path.** CSV and NDJSON both work; Excel is
+   unscoped and unstarted, not currently requested.
 7. **The six deploy blockers in `TODO.md`** (B1–B6). None have moved.
 8. **A live ClamAV container for local dev** — the virus-scan adapter
    (`src/bronze/scan.py`) is proven against a fake-clamd protocol double
    only; `docker-compose.yml` has no real scanner service. Not requested yet.
+9. **A worker that actually consumes `load_trigger`** (or watches Bronze
+   directly) and calls the dispatcher from item 2 once it exists. The
+   Bronze→Silver load itself still stays in-process psycopg, never behind an
+   API — `HANDOFF-2026-08-07.md`, "Why the upsert must NOT go behind an API".
 
 **The reference schema is `reference/inafin_a1_schema.sql`** (received
 2026-08-07). It covers A1.01–A1.24 and is the column inventory the typed-tables

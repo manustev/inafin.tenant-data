@@ -54,6 +54,17 @@ class ValidationRejected(TenantDataError):
     """A Bronze artefact failed Silver validation and was quarantined."""
 
 
+class AuthenticationError(TenantDataError):
+    """The API request could not be resolved to a tenant.
+
+    Raised by `src.api.auth.AuthPort` adapters — a missing, malformed, or
+    unrecognised credential. Deliberately distinct from
+    `TenantBoundaryViolation`: that is a transaction that reached the
+    database and was stopped there; this is a request that never got that
+    far, because nothing has said which tenant it is yet.
+    """
+
+
 class IntakeRejected(TenantDataError):
     """A file was refused at Bronze intake, before it became an artefact.
 

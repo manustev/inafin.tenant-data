@@ -68,6 +68,15 @@ class Settings(BaseSettings):
     clamav_host: str = "localhost"
     clamav_port: int = 3310
 
+    # --- API auth (src/api/auth.py) ---
+    # token -> tenant slug. A placeholder adapter, not a security boundary:
+    # ARCHITECTURE.md 5.6 wants tenant identity from a signed Keycloak JWT
+    # claim, never a caller-supplied value. This is closer to that than a raw
+    # slug parameter, but real JWT/JWKS verification is unbuilt — see
+    # src/api/auth.py's module docstring. Read from env as a JSON object,
+    # e.g. API_TENANT_TOKENS='{"dev-acme-token": "acme"}'.
+    api_tenant_tokens: dict[str, str] = Field(default_factory=dict)
+
     environment: str = "development"
     log_level: str = "INFO"
 

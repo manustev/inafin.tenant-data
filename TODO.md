@@ -67,6 +67,45 @@ surprising us.
 
 ---
 
+## Ingestion surface — what's built and what's still missing (2026-08-10)
+
+`src/api/` — REST upload/trigger/status + GraphQL reads, per the shape agreed
+2026-08-07 (`HANDOFF-2026-08-07.md`). Upload, status, and the GraphQL reads
+wrap real library calls unchanged (`BronzeIngestionService.receive`,
+`SilverReader.artefact_outcome`, `EntitlementReader.find`). Two things are
+explicitly NOT built, and this is where they're tracked:
+
+- [ ] **No Bronze->Silver dispatcher.** `POST /artefacts/{id}/trigger` only
+      INSERTs into `load_trigger` (tenant migration 015) — it does not call any
+      loader. There is no `doc_type_code -> loader` routing anywhere: nothing
+      in `platform_ref.document_type` names which class handles a given type
+      (only `table_name`, a register-family signal, and `archetype`, a
+      structural-family signal). A real dispatcher needs to route to one of:
+      a `RegisterSpec` via `src/silver/registers/catalog.py`'s `spec_for`,
+      `src/silver/promote.py`'s archetype-1 path, `SalesRegisterLoader`
+      (`SALES_REGISTER` only, no spec), or a future entitlement path
+      (`archetype == 3`, unbuilt — see the `entitlement_instrument` item
+      below `TYPED-TABLES-PLAN.md` 11). Until this exists, a trigger is a
+      recorded intent nobody acts on — a worker or manual library call is
+      still the only way an artefact actually gets promoted.
+- [ ] **No real auth.** `src/api/auth.py`'s `StaticTokenAuth` is a static
+      bearer-token -> slug map from `Settings.api_tenant_tokens` — a
+      placeholder satisfying the `AuthPort` Protocol, not a security boundary.
+      ARCHITECTURE.md 5.6 wants tenant identity from a signed Keycloak JWT
+      claim, verified at "the gateway". No JWKS fetch, no signature check, no
+      expiry, no revocation exists. Do not deploy this adapter anywhere
+      internet-facing; swapping in a real one is a second `AuthPort`
+      implementation, not a route-handler rewrite.
+
+Also not built: a worker process or object-storage watcher that would consume
+`load_trigger` rows (or watch Bronze directly) and actually call a loader —
+the Bronze->Silver load itself stays in-process psycopg by design
+(`HANDOFF-2026-08-07.md` "Why the upsert must NOT go behind an API"), so this
+worker calls a loader library function directly, same as `tests/handoff/`
+does today; it is not a new API.
+
+---
+
 ## Phase 0 — decisions with no owner yet
 
 See ARCHITECTURE.md §9 (findings) and §11 (open decisions).
@@ -237,28 +276,30 @@ them now would be guessing at Pipeline 2's shape.
 
 - [ ] Index pass over every typed table, once v2's query patterns are real.
 
-### A natural key containing a NULLable column does not enforce itself
+### A natural key containing a NULLable column does not enforce itself — CLOSED 2026-08-10
 
-Found 2026-08-07 while building the A1 loaders. **This one is correctness, not
-performance, so it does not belong in the deferred index pass above.**
+Found 2026-08-07 while building the A1 loaders.
 
 Three natural keys in tenant migration 010 include `supplier_gstin`, which is
 nullable because an unregistered supplier is legitimate — `purchase_register`,
 `creditor_ageing_report`, `common_input_service_invoice`. A unique index treats
-two NULLs as **distinct**, so the partial unique index does not in fact forbid two
-live rows for the same (entity, gstin, NULL, invoice_no). It only looks like it
-does.
+two NULLs as **distinct**, so the partial unique index did not in fact forbid two
+live rows for the same (entity, gstin, NULL, invoice_no). It only looked like it
+did.
 
-The loader is already correct: `RegisterLoader._upsert_natural` matches nullable
+The loader was already correct: `RegisterLoader._upsert_natural` matches nullable
 key columns with `IS NOT DISTINCT FROM`, so a resubmitted RCM purchase supersedes
 instead of duplicating, and
 `test_a_supplier_with_no_gstin_supersedes_instead_of_duplicating` fails if anyone
-changes it back to `=`. What is missing is the *database* saying so: two
-concurrent loads of the same file can still both insert, and nothing stops them.
+changes it back to `=`. What was missing was the *database* saying so.
 
-- [ ] Migration: `NULLS NOT DISTINCT` (PG15+) on those three unique indexes, so
-      the constraint means what the column list implies. Cheap now — the tables
-      are empty. After real data it needs a duplicate sweep first.
+**Closed by tenant migration `014_nulls_not_distinct.sql`** — `NULLS NOT
+DISTINCT` added to all three indexes, so the constraint now means what the
+column list implies. No duplicate sweep was needed: no production data exists
+(all six deploy blockers below are still open). Gate:
+`test_the_index_rejects_two_live_nulls_the_lookup_would_have_matched`
+(`tests/conformance/test_registers.py`) inserts past the loader directly and
+asserts the second NULL-supplier row is refused.
 
 ### Partitioning: decided NOT to partition
 

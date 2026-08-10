@@ -39,6 +39,174 @@ never collides with the `inafinplatform/v2` stack on 5432.
 
 ---
 
+## Invoking each layer: API, Bronze, Silver
+
+Three ways to call this codebase, in the order data actually moves through it.
+The API layer is the newest and thinnest — it wraps the other two unchanged,
+so read Bronze and Silver first if something the API does looks surprising.
+
+### API — `src/api/` (REST + GraphQL)
+
+The only layer reachable over HTTP. Run it:
+
+```bash
+uvicorn src.api.app:app --reload
+```
+
+**Auth is a placeholder**, not a security boundary (`src/api/auth.py` —
+`StaticTokenAuth`, a static bearer-token → tenant-slug map). Every request
+needs `Authorization: Bearer <token>`, where the token is a key in
+`Settings.api_tenant_tokens` (`.env`'s `API_TENANT_TOKENS`, a JSON object —
+`.env.example` ships `{"dev-acme-token": "acme"}`). The tenant slug is never
+a request parameter; it only ever comes from this resolution.
+
+**Upload an artefact** — wraps `BronzeIngestionService.receive` for real
+(file-check → hash → dedup → virus scan → PUT → ledger INSERT):
+
+```bash
+curl -X POST http://localhost:8000/artefacts \
+  -H "Authorization: Bearer dev-acme-token" \
+  -F "entity_id=$(python3 -c 'import uuid; print(uuid.uuid4())')" \
+  -F "document_type=BILL_OF_ENTRY" \
+  -F "file=@export.csv;type=text/csv"
+# {"ingest_id": "...", "bucket": "...", "object_key": "...", "size_bytes": ..., "deduplicated": false}
+```
+
+**Check "did my upload succeed"** — wraps `SilverReader.artefact_outcome`:
+
+```bash
+curl http://localhost:8000/artefacts/<ingest_id>/status \
+  -H "Authorization: Bearer dev-acme-token"
+# {"status": "PENDING" | "QUARANTINED" | "ACCEPTED" | "PARTIAL", "rejections": [...], ...}
+```
+
+**Trigger a load — STUB.** Records that a load was requested
+(`{{bronze}}.load_trigger`, tenant migration 015); calls no loader. There is
+still no `doc_type_code -> loader` dispatcher (`TODO.md`, "Ingestion surface —
+what's built and what's still missing"), so `status` stays `PENDING`
+afterward:
+
+```bash
+curl -X POST http://localhost:8000/artefacts/<ingest_id>/trigger \
+  -H "Authorization: Bearer dev-acme-token" -H "Content-Type: application/json" \
+  -d '{"doc_type_code": "BILL_OF_ENTRY"}'
+# {"trigger_id": 1, "ingest_id": "...", "doc_type_code": "...", "status": "recorded"}
+```
+
+**Read** — GraphQL over `v1_` views, wrapping `SilverReader`/
+`EntitlementReader` with no new read logic:
+
+```bash
+curl -X POST http://localhost:8000/graphql \
+  -H "Authorization: Bearer dev-acme-token" -H "Content-Type: application/json" \
+  -d '{"query": "query($id: UUID!) { artefactOutcome(bronzeIngestId: $id) { status rejectedCount } }", "variables": {"id": "<ingest_id>"}}'
+```
+
+A `/graphql` GET in a browser (with the header set via an extension, or via
+any GraphQL client) opens GraphiQL for exploring the schema interactively.
+
+### Bronze — `src/bronze/service.py` (library call, no API)
+
+Every layer below API is a plain async library call — construct a
+`TenantScopedPool` and a `TenantContext`, then call the service directly.
+This is what the API layer itself does; nothing here is API-only.
+
+```python
+from src.core.config import get_settings
+from src.core.pool import TenantScopedPool
+from src.core.tenant import TenantContext
+from src.bronze.service import BronzeIngestionService
+from src.provisioning.objectstore import S3ObjectStore
+
+settings = get_settings()
+pool = TenantScopedPool(settings.pg_app_dsn)
+await pool.open()
+
+store = S3ObjectStore(
+    endpoint_url=settings.s3_endpoint_url, region=settings.s3_region,
+    access_key=settings.s3_access_key, secret_key=settings.s3_secret_key,
+    bucket_prefix=settings.s3_bucket_prefix, retention_days=settings.bronze_retention_days,
+)
+bronze = BronzeIngestionService(pool, store)
+ctx = TenantContext(slug="acme")
+
+receipt = await bronze.receive(
+    ctx, entity_id=entity_id, data=csv_bytes,
+    document_type="BILL_OF_ENTRY", filename="export.csv",
+)
+# ArtefactReceipt(ingest_id=..., content_hash=..., bucket=..., object_key=..., deduplicated=False)
+```
+
+### Silver — one entry point per document family, all library calls
+
+No single "load this artefact" function exists yet — that dispatcher is
+open work (`TODO.md`). Pick the entry point for the document family:
+
+**23 flat A1 registers** (`PURCHASE_REGISTER`, `CREDITOR_AGEING_REPORT`, …) —
+`src/silver/registers/`, spec-driven:
+
+```python
+from src.silver.registers import RegisterLoader, spec_for
+
+spec = spec_for("PURCHASE_REGISTER")
+outcome = await RegisterLoader(pool, spec).load(
+    ctx, entity_id=entity_id, gstin="27AAFCI9876P1ZQ",
+    ingest_id=receipt.ingest_id, data=csv_bytes,
+    period_start=date(2026, 4, 1), period_end=date(2026, 4, 30),
+    content_format="csv",  # or "ndjson"
+)
+# RegisterOutcome(inserted=.., unchanged=.., superseded=.., rejected=.., ...)
+```
+
+**`SALES_REGISTER` (A1.01)** — the one type with a header/line split, its own
+loader, CSV only:
+
+```python
+from src.silver.sales_register import SalesRegisterLoader
+
+outcome = await SalesRegisterLoader(pool).load(
+    ctx, entity_id=entity_id, gstin="27AAFCI9876P1ZQ",
+    ingest_id=receipt.ingest_id, data=csv_bytes,
+    period_start=date(2026, 4, 1), period_end=date(2026, 4, 30),
+)
+```
+
+**The 10 remaining archetype-1 types** (Bills of Entry, GTA consignment
+notes, e-way bills, …) — `src/silver/promote.py`, contract-driven, one table
+pair (`transaction_document` + `transaction_line`) shared across all 10:
+
+```python
+from src.silver.promote import SilverPromotionService
+
+manifest = await SilverPromotionService(pool).promote_transaction_documents(
+    ctx, document_type="BILL_OF_ENTRY", ingest_id=receipt.ingest_id,
+    entity_id=entity_id, data=csv_bytes,
+    period_start=date(2026, 4, 1), period_end=date(2026, 4, 30),
+)
+```
+
+**Archetype 3, `entitlement_instrument`** (33 HYBRID types — LUT, EPCG, IEC,
+…) — `src/silver/entitlement.py`. Persistence only: the caller must already
+have an extracted `InstrumentRecord` (turning a LUT PDF into one is
+unbuilt extraction work, `TODO.md`):
+
+```python
+from src.silver.entitlement import EntitlementService, InstrumentRecord
+
+instrument_id = await EntitlementService(pool).record(ctx, InstrumentRecord(
+    entity_id=entity_id, instrument_type="LUT", issuing_authority="CGST",
+    instrument_number="LUT/2026/001", valid_from=date(2026, 4, 1),
+    batch_id=batch_id, bronze_ingest_id=receipt.ingest_id,
+))
+```
+
+**Reading Silver** — `src/reader/silver_reader.py` (`SilverReader`) and
+`src/reader/entitlement_reader.py` (`EntitlementReader`), both `Role.RECON`,
+both what the API layer's GraphQL resolvers call. `inafinplatform/v2` imports
+these directly rather than going through HTTP.
+
+---
+
 ## Isolation model in sixty seconds
 
 | | |

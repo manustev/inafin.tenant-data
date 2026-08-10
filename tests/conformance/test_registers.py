@@ -543,9 +543,10 @@ async def test_a_supplier_with_no_gstin_supersedes_instead_of_duplicating(
     NULLs as distinct. The loader uses IS NOT DISTINCT FROM; this is the row that
     proves it.
 
-    The INDEX gap is still open (TODO.md): two concurrent loads can still both
-    insert. The fix is NULLS NOT DISTINCT on the three affected indexes, which is
-    a migration.
+    The INDEX gap this used to leave open is closed by tenant migration 014
+    (`NULLS NOT DISTINCT`) — see
+    `test_the_index_rejects_two_live_nulls_the_lookup_would_have_matched` below
+    for the gate on the database side of that fix.
     """
     spec = spec_for("PURCHASE_REGISTER")
     original = PURCHASE_HANDWRITTEN.read_bytes()
@@ -558,6 +559,67 @@ async def test_a_supplier_with_no_gstin_supersedes_instead_of_duplicating(
     live = _live(admin, tenant_a, spec, entity, "invoice_no", "cost_centre")
     assert len(live) == 5
     assert [r[3] for r in live if r[2] == "CASH/BILL/0442"] == ["CC-FREIGHT"]
+
+
+@pytest.mark.asyncio
+async def test_the_index_rejects_two_live_nulls_the_lookup_would_have_matched(
+    app_pool: TenantScopedPool,
+    admin: psycopg.Connection[tuple[object, ...]],
+    tenant_a: SeededTenant,
+    entity: uuid.UUID,
+) -> None:
+    """The database side of the fix, not just the loader's `IS NOT DISTINCT FROM`.
+
+    Migration 014 added `NULLS NOT DISTINCT` to `purchase_register`'s natural-key
+    index. Before that migration, this test's second INSERT would have
+    succeeded — a partial unique index treats two NULLs as distinct by default,
+    so two concurrent loads of the same unregistered-supplier invoice could both
+    land as live rows with nothing to stop them. The loader's lookup was already
+    correct (the test above); this proves the constraint backs it up even when
+    something bypasses the loader.
+    """
+    spec = spec_for("PURCHASE_REGISTER")
+    original = PURCHASE_HANDWRITTEN.read_bytes()
+    outcome = await _load(app_pool, tenant_a, spec, original, entity_id=entity)
+    schema = tenant_a.ctx.silver_schema
+
+    row = admin.execute(
+        sql.SQL(
+            "SELECT gstin, invoice_no, invoice_date, taxable_value, gl_code,"
+            "       cost_centre, valid_from, row_hash"
+            "  FROM {}.purchase_register"
+            " WHERE entity_id = %s AND supplier_gstin IS NULL"
+            " LIMIT 1"
+        ).format(sql.Identifier(schema)),
+        (entity,),
+    ).fetchone()
+    assert row is not None, "fixture has no unregistered-supplier row to duplicate"
+    gstin, invoice_no, invoice_date, taxable_value, gl_code, cost_centre, valid_from, _ = row
+
+    # The unconditional Rollback is load-bearing (test_typed_tables.py's
+    # `_probe_rejects` docstring explains why): written as
+    # `pytest.raises(...), admin.transaction():` alone, the probe INSERT is
+    # undone only by the constraint firing. If someone weakens the index this
+    # gate is meant to catch, the test would both fail AND leave the duplicate
+    # row committed — corrupting the fixture data for every test that runs
+    # after it in the same session.
+    with admin.transaction():
+        with pytest.raises(psycopg.errors.UniqueViolation), admin.transaction():
+            admin.execute(
+                sql.SQL(
+                    "INSERT INTO {}.purchase_register"
+                    " (entity_id, gstin, tax_period, batch_id, bronze_ingest_id,"
+                    "  row_hash, supplier_gstin, invoice_no, invoice_date,"
+                    "  taxable_value, gl_code, cost_centre, valid_from)"
+                    " VALUES (%s, %s, %s, %s, %s, %s, NULL, %s, %s, %s, %s, %s, %s)"
+                ).format(sql.Identifier(schema)),
+                (
+                    entity, gstin, PERIOD_START, outcome.batch_id, uuid.uuid4(),
+                    "a-second-null-supplier-row", invoice_no, invoice_date,
+                    taxable_value, gl_code, cost_centre, valid_from,
+                ),
+            )
+        raise psycopg.Rollback
 
 
 @pytest.mark.asyncio
