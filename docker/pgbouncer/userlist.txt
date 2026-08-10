@@ -1,0 +1,4 @@
+;; LOCAL DEV ONLY. auth_type = plain.
+;; Production uses scram-sha-256 with auth_user + auth_query against Postgres,
+;; so no credential is ever written to a file on the pooler host.
+"app_login" "app_pw"

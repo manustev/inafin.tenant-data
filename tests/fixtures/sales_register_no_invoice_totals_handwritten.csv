@@ -1,0 +1,2 @@
+invoice_no,invoice_date,customer_gstin,invoice_type,supply_type,place_of_supply,reverse_charge,currency,trade_discount,freight,packing,insurance,invoice_taxable_value,invoice_cgst,invoice_sgst,invoice_igst,invoice_cess,invoice_total_value,irn,ewb_no,line_number,hsn_sac,description,qty,uom,unit_price,taxable_value,gst_rate,cgst,sgst,igst,cess,total_value
+SI/2026-27/00088,2026-06-06,27AAACR5055K1Z5,B2B,SERVICE,27,false,INR,,,,,,,,,,,,,1,998313,Managed IT services - June,1,MON,80000.0000,80000.00,18.00,7200.00,7200.00,0.00,0.00,94400.00

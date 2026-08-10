@@ -1,0 +1,55 @@
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v3
+      - run: uv venv --python 3.12
+      - run: uv pip install -e ".[dev]"
+
+      # The stack, not a bare Postgres service container. Conformance gate 10.3
+      # (role leakage across pooled connections) is meaningless without
+      # PgBouncer in transaction mode, so the pooler is part of CI, not an
+      # environment detail deferred to staging.
+      - name: Start stack
+        run: |
+          cp .env.example .env
+          docker compose up -d
+          for i in $(seq 1 60); do
+            if docker compose ps --format '{{.Health}}' | grep -qv healthy; then
+              sleep 2
+            else
+              break
+            fi
+          done
+          docker compose ps
+
+      - run: .venv/bin/ruff check src scripts tests
+      - run: .venv/bin/mypy src
+
+      - name: Static gates
+        run: .venv/bin/python scripts/check_static.py
+
+      - name: Conformance gates (isolation)
+        run: .venv/bin/python -m pytest tests -q -m conformance
+
+      - name: Handoff gates
+        run: .venv/bin/python -m pytest tests -q -m handoff
+
+      # Runs against the migrated cluster. This is the same command that must
+      # run POST-MIGRATE in every deployed environment — CI proves the
+      # migrations are right in the abstract, this proves the cluster is.
+      - name: Structural isolation gate
+        run: .venv/bin/python scripts/check_isolation.py
+
+      - name: Dump stack logs on failure
+        if: failure()
+        run: docker compose logs --tail=200

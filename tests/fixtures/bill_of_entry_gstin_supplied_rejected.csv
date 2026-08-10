@@ -1,0 +1,2 @@
+doc_number,counterparty_gstin,counterparty_name,doc_date,currency,line_number,hsn_sac,description,quantity,uom,unit_price,taxable_value,gst_rate,cgst_amount,sgst_amount,igst_amount,cess_amount,itc_amount,be_number,be_date,port_code,bcd_amount,social_welfare_surcharge
+7412597,27AAACR5055K1Z5,Shenzhen Kaiyuan Electronics Co Ltd,2026-04-08,INR,1,85176290,Network switch 24-port managed,50,NOS,8400.0000,420000.00,18.00,0.00,0.00,75600.00,0.00,75600.00,7412597,2026-04-08,INNSA1,42000.00,4200.00

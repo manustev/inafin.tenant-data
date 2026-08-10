@@ -1,0 +1,6 @@
+doc_number,counterparty_gstin,counterparty_name,doc_date,currency,line_number,hsn_sac,description,quantity,uom,unit_price,taxable_value,gst_rate,cgst_amount,sgst_amount,igst_amount,cess_amount,itc_amount,place_of_supply,invoice_type
+SI/2026-27/00001,27AAACR5055K1Z5,Reliable Traders Private Limited,2026-04-03,INR,1,84713010,Desktop computer - i5 11th gen,10,NOS,42000.0000,420000.00,18.00,37800.00,37800.00,0.00,0.00,0.00,27,B2B
+SI/2026-27/00001,27AAACR5055K1Z5,Reliable Traders Private Limited,2026-04-03,INR,2,85044090,Switched mode power supply 650W,10,NOS,3200.0000,32000.00,18.00,2880.00,2880.00,0.00,0.00,0.00,27,B2B
+SI/2026-27/00002,29AAGCB1286Q1ZG,Bengaluru Systems LLP,2026-04-11,INR,1,84713010,Desktop computer - i7 12th gen,4,NOS,68000.0000,272000.00,18.00,0.00,0.00,48960.00,0.00,0.00,29,B2B
+SI/2026-27/00003,,,2026-04-18,INR,1,85176290,Wireless router dual band,2,NOS,2400.0000,4800.00,18.00,432.00,432.00,0.00,0.00,0.00,27,B2C
+SI/2026-27/00004,33AABCT3518Q1ZV,Chennai Retail Ventures Limited,2026-04-27,INR,1,24022090,Cigarettes - filter 69mm,500,PCS,12.0000,6000.00,28.00,0.00,0.00,1680.00,3170.00,0.00,33,B2B

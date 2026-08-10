@@ -1,0 +1,4 @@
+doc_number,counterparty_gstin,counterparty_name,doc_date,currency,line_number,hsn_sac,description,quantity,uom,unit_price,taxable_value,gst_rate,cgst_amount,sgst_amount,igst_amount,cess_amount,itc_amount,be_number,be_date,port_code,bcd_amount,social_welfare_surcharge
+7412596,,Shenzhen Kaiyuan Electronics Co Ltd,2026-04-08,INR,1,85176290,Network switch 24-port managed,50,NOS,8400.0000,420000.00,18.00,0.00,0.00,75600.00,0.00,75600.00,7412596,2026-04-08,INNSA1,42000.00,4200.00
+7412596,,Shenzhen Kaiyuan Electronics Co Ltd,2026-04-08,INR,2,85444999,Cat6 shielded cable 305m box,20,NOS,6100.0000,122000.00,18.00,0.00,0.00,21960.00,0.00,21960.00,7412596,2026-04-08,INNSA1,12200.00,1220.00
+7538104,,Hanwha Precision Machinery,2026-04-22,INR,1,84713010,Industrial rackmount server chassis,6,NOS,94500.0000,567000.00,18.00,0.00,0.00,102060.00,0.00,102060.00,7538104,2026-04-22,INMAA4,56700.00,5670.00

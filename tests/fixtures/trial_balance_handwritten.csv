@@ -1,0 +1,9 @@
+gl_code,account_description,opening_balance,closing_balance,dr_cr,gst_treatment
+1100,Cash and cash equivalents,1250000.00,1874500.00,DR,OUT_OF_SCOPE
+2100,Sundry creditors,-880000.00,-1042000.00,CR,ITC_POOL
+4100,Sales - taxable domestic,0.00,-9450000.00,CR,TAXABLE
+4200,Sales - export under LUT,0.00,-2100000.00,CR,ZERO_RATED
+5210,Purchases - trading goods,0.00,4120000.00,DR,ITC_ELIGIBLE
+6410,Professional and audit fees,0.00,340000.00,DR,ITC_ELIGIBLE
+6820,Freight inward - unregistered,0.00,74000.00,DR,RCM
+6910,Staff welfare,0.00,96000.00,DR,ITC_BLOCKED

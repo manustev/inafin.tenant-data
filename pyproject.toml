@@ -1,0 +1,94 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project]
+name = "inafin-tenant-data"
+version = "0.1.0"
+description = "INAFIN tenant data layer: schema-per-tenant isolation, Bronze/Silver medallion, Kafka handoff"
+requires-python = ">=3.12"
+dependencies = [
+    "pydantic>=2.8.0",
+    "pydantic-settings>=2.4.0",
+    "psycopg[binary,pool]>=3.2.0",
+    "boto3>=1.35.0",
+    "aiokafka>=0.11.0",
+    "structlog>=24.4.0",
+    "tenacity>=8.5.0",
+    "python-dotenv>=1.0.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.2.0",
+    "pytest-asyncio>=0.23.0",
+    "pytest-cov>=5.0.0",
+    "mypy>=1.10.0",
+    "ruff>=0.5.0",
+    "boto3-stubs[s3]>=1.35.0",
+]
+
+[project.scripts]
+tenantctl = "src.cli:main"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src"]
+
+# ---------------------------------------------------------------------------
+# Ruff
+# ---------------------------------------------------------------------------
+[tool.ruff]
+target-version = "py312"
+line-length = 100
+src = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E", "W", "F", "I", "B", "C4", "UP", "ANN", "ARG", "S", "N", "SIM", "RUF",
+]
+ignore = [
+    "S101",  # assert — allowed; conformance tests are assertions
+]
+
+[tool.ruff.lint.per-file-ignores]
+# Tests deliberately construct hostile input and reach past the public API.
+"tests/**/*.py" = ["S101", "ANN", "ARG", "B017", "S608", "SLF001"]
+# N818 wants an "Error" suffix. These names are the domain vocabulary used in
+# the architecture docs and in alerts — "TenantBoundaryViolation" in a pager
+# message says what happened; "TenantBoundaryError" says less.
+"src/core/errors.py" = ["N818"]
+# The pool and provisioning modules build identifiers by interpolation; every
+# such site is guarded by validate_slug() / quote_ident(). See core/identifiers.py.
+"src/core/pool.py" = ["S608"]
+"src/provisioning/grants.py" = ["S608"]
+"src/migrate/runner.py" = ["S608"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["src"]
+
+# ---------------------------------------------------------------------------
+# Mypy
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version = "3.12"
+strict = true
+plugins = ["pydantic.mypy"]
+mypy_path = "."
+explicit_package_bases = true
+namespace_packages = true
+
+[[tool.mypy.overrides]]
+module = ["aiokafka.*"]
+ignore_missing_imports = true
+
+# ---------------------------------------------------------------------------
+# Pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+asyncio_mode = "auto"
+testpaths = ["tests"]
+markers = [
+    "conformance: tenant isolation conformance gates (ARCHITECTURE.md 10.1-10.8)",
+    "handoff: Bronze->Silver->Kafka->Gold handoff gates (ARCHITECTURE.md 10.9-10.12)",
+    "pooler: MUST run through PgBouncer; proves nothing against a direct connection",
+]

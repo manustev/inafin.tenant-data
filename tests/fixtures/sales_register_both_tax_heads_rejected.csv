@@ -1,0 +1,2 @@
+doc_number,counterparty_gstin,counterparty_name,doc_date,currency,line_number,hsn_sac,description,quantity,uom,unit_price,taxable_value,gst_rate,cgst_amount,sgst_amount,igst_amount,cess_amount,itc_amount,place_of_supply,invoice_type
+SI/2026-27/00099,27AAACR5055K1Z5,Reliable Traders Private Limited,2026-04-03,INR,1,84713010,Desktop computer - i5 11th gen,10,NOS,42000.0000,420000.00,18.00,37800.00,37800.00,75600.00,0.00,0.00,27,B2B

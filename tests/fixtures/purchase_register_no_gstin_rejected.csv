@@ -1,0 +1,2 @@
+doc_number,counterparty_gstin,counterparty_name,doc_date,payment_due_date,line_number,hsn_sac,description,quantity,uom,unit_price,taxable_value,gst_rate,cgst_amount,sgst_amount,igst_amount,cess_amount,itc_amount,itc_eligibility
+PI/2026/0091,,Unnamed Supplier,2026-04-09,2026-07-08,1,84713010,Server memory module 32GB,8,NOS,9400.0000,75200.00,18.00,6768.00,6768.00,0.00,0.00,13536.00,ELIGIBLE
