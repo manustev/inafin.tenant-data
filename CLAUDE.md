@@ -54,7 +54,7 @@ Each of these was expensive to establish. Do not "fix" one without reading why.
 ## Workflow
 
 ```bash
-make ci                      # ruff + mypy + 149 tests + isolation + static gates
+make ci                      # ruff + mypy + 410 tests + isolation + static gates
 make migrate                 # shared chain, all tenants, drift check
 make provision SLUG=acme
 ```
@@ -69,12 +69,51 @@ make provision SLUG=acme
   fails, restore. A suite nobody has seen fail is indistinguishable from
   `assert True`.
 
-## Current state (2026-08-06)
+## Current state (2026-08-10)
 
-Built: isolation foundation, Bronze→Silver, v2 handoff contract, Document Type
-Registry (125 in-scope types), Bronze insert-only, **Archetype 3
-`entitlement_instrument`** (33 types, one table), **Archetype 1
-`transaction_document` + `transaction_line`** (11 types, one table pair).
+**Read `HANDOFF-2026-08-10.md` for this session's detail; this section is the
+durable summary.** `make ci` is green from a clean cluster — **410 tests**.
+The repo is now under git (`main`, one `initial commit`, clean tree).
+
+**TYPED-TABLES-PLAN.md §10 is now fully built, steps 1–5 all done.** Step 4
+(the last one) landed this session: the archetype-1 write path for
+`PURCHASE_REGISTER` is retired — `v1_purchase_invoice` reads from
+`purchase_register`, `promote.py` refuses to promote that type through
+`transaction_document` (`_RETIRED_ARCHETYPE_1_TYPES`). **`v1_purchase_invoice_line`
+was dropped** (no line-level data exists for that type in the reference
+schema) — this is a breaking v2 contract change awaiting sign-off, not yet
+raised with anyone downstream. `transaction_document` still holds the other
+10 archetype-1 types unchanged.
+
+Also built this session, driven by an explicit design review and two hard
+requirements (row-level not file-level rejection; JSON/CSV support, JSON
+resolved to NDJSON):
+
+- **Row-level rejection** for the register loader path — `rejected_row`
+  (tenant migration `012`), one row per rejection, FK'd to `ingest_batch`.
+  FATAL failures (bad encoding, missing column, zero rows) still quarantine
+  the whole artefact via `quarantined_artefact`, unchanged; everything else
+  promotes what's valid and records the rest.
+- **NDJSON parsing** alongside CSV, sharing one validation rule (`_parse_row`)
+  so a fix in one format is a fix in both.
+- **Bronze intake gate** (`src/bronze/scan.py`, `src/bronze/filecheck.py`) —
+  file-shape checks plus a swappable virus-scan `Protocol`
+  (`VirusScanPort`), because Steve may adopt a commercial or cloud-native
+  scanner later and wants scanning toggleable per pipeline. `NullScanner`
+  (off, default) and `ClamAVScanner` (real, adapter-tested against a fake
+  clamd) are the two adapters today; no live ClamAV container was added to
+  `docker-compose.yml`.
+- **`SilverReader.artefact_outcome`** (tenant migration `013`) — the
+  customer-facing "did my upload succeed" query: `PENDING` /
+  `QUARANTINED` / `ACCEPTED` / `PARTIAL`, with per-row rejection detail on
+  `PARTIAL`. This closes the original motivating gap (a report saying an
+  upload succeeded or failed and why).
+
+Built earlier, still true: isolation foundation, Bronze→Silver, v2 handoff
+contract, Document Type Registry (125 in-scope types), Bronze insert-only,
+**Archetype 3 `entitlement_instrument`** (33 types, one table), **Archetype 1
+`transaction_document` + `transaction_line`** (now 10 types, one table pair —
+`PURCHASE_REGISTER` moved off it this session).
 
 **Typed-tables redesign, steps 1–3 of `TYPED-TABLES-PLAN.md` §10 are done**
 (149 tests green from a clean cluster; the 23 new tables have DDL gates only):
@@ -125,12 +164,13 @@ loader is correct, the index is not. `NULLS NOT DISTINCT` migration is in
 Not built: extraction adapters (PDF → `InstrumentRecord`), `inafinplatform/v2`
 wiring, the six deploy blockers in `TODO.md`.
 
-**The archetype work above is being unwound for `STRUCTURED` types** — see
-`TYPED-TABLES-PLAN.md` §9 for what survives, what is replaced, and what is still
-open. No production data exists (all six deploy blockers open, including B5), so
-reversal is new migrations against empty tenant schemas. Nothing is unwound yet:
-`transaction_document` still holds the 11 archetype-1 types and
-`v1_purchase_invoice` still reads from it. That happens at step 4.
+**The archetype work above has been unwound for `PURCHASE_REGISTER`, the one
+`STRUCTURED`-typed member of archetype 1** (step 4, 2026-08-10) — see
+`TYPED-TABLES-PLAN.md` §9 for what survives, what is replaced, and
+`HANDOFF-2026-08-10.md` for the detail. No production data exists (all six
+deploy blockers open, including B5), so this was new migrations against empty
+tenant schemas. `transaction_document` still holds the other 10 archetype-1
+types unchanged; only `PURCHASE_REGISTER` moved.
 
 `README.md` §"Where the schema actually lives" lists every schema, table and view
 with the psql to re-derive it, plus the naming and column conventions — read that
@@ -139,45 +179,49 @@ first. It still describes the archetype tables.
 
 ## Next session starts here
 
-**Read `TYPED-TABLES-PLAN.md` first. Build order is its §10; steps 1–3 are done
-and step 5 (the 23 flat loaders) is done.**
+**`TYPED-TABLES-PLAN.md` §10 is fully built — all five steps done as of
+2026-08-10.** Do not re-propose any part of it; read `HANDOFF-2026-08-10.md`
+for what changed and why before touching anything below.
 
-Step 4 is the remaining one: retire the archetype path for `PURCHASE_REGISTER` —
-redefine `v1_purchase_invoice` over `purchase_register` (which now has a loader
-and a spec) and stop writing `transaction_document`. Nothing is unwound yet.
+Priority order for what's actually open:
 
-After that, the open question is the ingestion *surface*: there is still no HTTP
-API, no worker, and nothing that watches object storage — every loader is a
-library a caller must invoke. Discussed 2026-08-07; the shape agreed in
-principle is a control plane (upload, trigger, status) over HTTP with the
-Bronze→Silver load staying in-process psycopg, because the upsert is a
-transaction with `SET LOCAL ROLE` inside it and per-row HTTP cannot hold that.
-Not built, not decided in detail.
-
-The archetype design is overruled for `STRUCTURED` types (agreed 2026-08-06 with
-the customer, against a reference schema they supplied). One typed table per
-document type; typed columns and domains instead of an `attributes jsonb` bag
-described by `field_contract`. The decisive argument was per-tenant schema
-variation, which a table shared by 11 or 33 types cannot support.
-
-**Do step 3's review before step 4.** `A1.01 SALES_REGISTER` is the pattern the
-other 23 A1 types copy, so a wrong column there is a wrong column 24 times.
+1. **v2 sign-off on the dropped `v1_purchase_invoice_line` view.** Step 4
+   removed it because the reference schema has no line-level data for
+   `PURCHASE_REGISTER`. If `inafinplatform/v2` reads that view, this is a
+   breaking change nobody downstream has agreed to yet — a conversation, not
+   a code task, and it should happen before v2 integration work resumes.
+2. **The ingestion surface.** Still no HTTP API, no worker, nothing watching
+   object storage — every loader (register or archetype-1) is a library a
+   caller must invoke directly. Shape agreed in principle 2026-08-07: a
+   control plane (upload, trigger, status) over HTTP, with the Bronze→Silver
+   load staying in-process psycopg — the upsert is a transaction with
+   `SET LOCAL ROLE` inside it, and per-row HTTP cannot hold that open. Not
+   built, not decided in detail. Full argument in
+   `HANDOFF-2026-08-07.md`, "Then: the ingestion surface".
+3. **JSON/Excel adapters for the loader path.** CSV and NDJSON both work
+   (2026-08-10). Excel is unscoped and unstarted.
+4. **`entitlement_instrument`** (tenant `006`, 33 HYBRID types) — the
+   typed-tables verdict for A1 does not automatically carry; the reference
+   schema is A1-only and never touched this table. Still open.
+5. **The 63 HYBRID types generally** — table-per-type may be overkill where
+   the field set is three columns. Still open.
+6. **`NULLS NOT DISTINCT` migration** (found 2026-08-07) — a unique index
+   containing a nullable key column does not enforce itself. Cheap now while
+   tables are empty; needs a duplicate sweep first once real data lands.
+7. **The six deploy blockers in `TODO.md`** (B1–B6). None have moved.
+8. **A live ClamAV container for local dev** — the virus-scan adapter
+   (`src/bronze/scan.py`) is proven against a fake-clamd protocol double
+   only; `docker-compose.yml` has no real scanner service. Not requested yet.
 
 **The reference schema is `reference/inafin_a1_schema.sql`** (received
-2026-08-07). It covers A1.01–A1.24 and is the column inventory for steps 4–5 —
-read it before adding a table. Shared 012 + tenant 009 reconciled step 3 against
-it; §10 of the plan records what changed and, more importantly, **what our
-design keeps because the reference has no substitute** (Bronze lineage, a real
-batch FK, bitemporality, the natural key, schema-per-tenant isolation).
+2026-08-07). It covers A1.01–A1.24 and is the column inventory the typed-tables
+work was built against — still worth reading before adding any new A1-adjacent
+table. §10 of `TYPED-TABLES-PLAN.md` records what changed against it and,
+more importantly, **what our design keeps because the reference has no
+substitute** (Bronze lineage, a real batch FK, bitemporality, the natural key,
+schema-per-tenant isolation).
 
 Column names for all A1 tables follow the reference (`qty`, `uom`, `cgst`, …).
-
-**Still open** (§11):
-
-1. `entitlement_instrument` (tenant 006, 33 HYBRID types) — the reference schema
-   is A1-only and does not touch it. The A1 verdict does not automatically carry.
-2. The 63 HYBRID types generally — table-per-type may be overkill where the
-   field set is three columns.
 
 ### The mutation check is not a formality
 
