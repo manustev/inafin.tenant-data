@@ -22,6 +22,8 @@ import pytest_asyncio
 from src.core.config import Settings, get_settings
 from src.core.pool import TenantScopedPool
 from src.core.tenant import TenantContext
+from src.extraction.base import DocumentExtractor
+from src.extraction.registry import build_extractor_registry
 from src.migrate.runner import MigrationRunner
 from src.provisioning.service import ProvisioningService
 
@@ -217,6 +219,25 @@ async def app_pool(
         yield pool
     finally:
         await pool.close()
+
+
+@pytest_asyncio.fixture
+async def extractor_registry(
+    app_pool: TenantScopedPool, tenant_a: SeededTenant
+) -> dict[str, DocumentExtractor]:
+    """The registry-driven `doc_type_code -> DocumentExtractor` instance map,
+    built for real against the seeded `platform_ref.document_type` — the
+    corrective-refactor replacement for importing a hand-written extractor
+    class directly (`tests/conformance/test_extraction_*.py`'s old pattern).
+
+    Built against `tenant_a`'s context, but `platform_ref` is shared catalog,
+    not tenant-scoped data — which tenant's `ctx` opens the connection does
+    not change what rows come back. Function-scoped, matching
+    `build_extractor_registry`'s own "read per call, never cached" design
+    (`src/extraction/registry.py`'s docstring) — a corrected `extraction_spec`
+    cell must be visible to the very next test, not stale.
+    """
+    return await build_extractor_registry(app_pool, tenant_a.ctx)
 
 
 @pytest.fixture

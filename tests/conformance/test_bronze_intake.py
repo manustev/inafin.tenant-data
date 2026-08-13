@@ -52,9 +52,12 @@ def test_oversized_file_is_rejected() -> None:
 
 
 def test_disallowed_extension_is_rejected() -> None:
-    result = check_file(filename="a.pdf", data=b"hello")
+    # "pdf" moved into ALLOWED_EXTENSIONS for the A2-A7 extraction adapters
+    # (src/extraction/) — "exe" stands in as an extension that will never be
+    # a legitimate Bronze intake format.
+    result = check_file(filename="a.exe", data=b"hello")
     assert not result.ok
-    assert result.reason is not None and "pdf" in result.reason
+    assert result.reason is not None and "exe" in result.reason
 
 
 def test_missing_filename_is_rejected_not_guessed_at() -> None:
@@ -76,7 +79,7 @@ def test_extension_match_is_case_insensitive() -> None:
 def test_checks_run_cheapest_first() -> None:
     """An empty AND wrongly-extensioned file reports emptiness, not the
     extension — check_file's docstring promises this ordering, so pin it."""
-    result = check_file(filename="a.pdf", data=b"")
+    result = check_file(filename="a.exe", data=b"")
     assert result.reason == "file is empty"
 
 

@@ -1,4 +1,4 @@
-.PHONY: help up down reset bootstrap migrate provision test conformance handoff gates lint typecheck ci
+.PHONY: help up down reset bootstrap migrate provision test conformance handoff gates lint typecheck ci baseline-api-schema
 
 VENV := .venv/bin
 
@@ -20,6 +20,9 @@ reset:         ## Destroy and rebuild the stack from empty. Bootstrap re-runs.
 
 migrate:       ## Apply the shared chain, then every tenant, then check drift
 	$(VENV)/python -m src.cli migrate
+
+baseline-api-schema: ## Record manually applied API migrations after schema verification
+	$(VENV)/python scripts/baseline_api_schema.py --tenant acme --tenant globex
 
 provision:     ## make provision SLUG=acme
 	$(VENV)/python -m src.cli provision $(SLUG)

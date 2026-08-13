@@ -23,9 +23,12 @@ from typing import Final
 #: Bronze's declared intake formats. Matches the register loader's two parsers
 #: (src/silver/registers/loader.py: parse_register_csv, parse_register_ndjson)
 #: plus plain "json" for a future array-of-records adapter — see TODO.md's
-#: open item on JSON/Excel intake. Extending this set is how a new format is
-#: admitted at the door; it does not by itself mean Silver can parse it yet.
-ALLOWED_EXTENSIONS: Final[frozenset[str]] = frozenset({"csv", "json", "ndjson"})
+#: open item on JSON/Excel intake. "pdf" was added for the A2-A7 extraction
+#: adapters (src/extraction/) — the 50 specimen documents in
+#: reference/A1-A7Documents/ are all native-text PDFs. Extending this set is
+#: how a new format is admitted at the door; it does not by itself mean
+#: Silver can parse it yet.
+ALLOWED_EXTENSIONS: Final[frozenset[str]] = frozenset({"csv", "json", "ndjson", "pdf"})
 
 #: 200 MiB. Comfortably above the largest A1 register export seen in mock
 #: data (TODO.md's ~3.6M line rows/year, spread across weekly files, is nowhere

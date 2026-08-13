@@ -512,6 +512,17 @@ migration ran. `app.apply_tenant_grants` REVOKEs before it GRANTs, so a privileg
 added by hand is removed on the next run — that is what lets `check_isolation.py`
 treat any deviation as a failure rather than a warning.
 
+If API migrations 020-024 were previously applied manually by a database owner,
+record their verified checksums before running the normal migration command:
+
+```sh
+make baseline-api-schema
+make migrate
+```
+
+The baseline command checks the required platform and tenant objects first; it
+does not execute DDL or overwrite an existing checksum.
+
 If one tenant fails, the others still complete. Fix and re-run; only the failed
 schema is behind.
 

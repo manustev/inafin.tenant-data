@@ -490,6 +490,63 @@ SPECS: tuple[RegisterSpec, ...] = (
             Col("igst", _N),
         ),
     ),
+
+    # --- A3.05 PAYROLL_TDS_REGISTER (tenant migration 020) ------------------
+    # Added for the A2-A7 extraction adapters (streamed-marinating-gray.md
+    # phase 6) — see src/extraction/register_types.py for the PDF->CSV-row
+    # synthesis that feeds this loader.
+    RegisterSpec(
+        doc_type_codes=("PAYROLL_TDS_REGISTER",),
+        table="payroll_tds_register",
+        period_column="tax_period",
+        key_kind=KeyKind.NATURAL,
+        key_columns=("entity_id", "gstin", "tax_period", "ref_no"),
+        columns=(
+            Col("ref_no", _T, required=True),
+            Col("person_name", _T, required=True),
+            Col("role_title", _T),
+            Col("classification", _T, required=True),
+            Col("tds_section", _T, required=True),
+            Col("gross_amount", _N, required=True),
+            Col("tds_deducted", _N, required=True),
+        ),
+    ),
+
+    # --- A5.14 FIRC_BRC_REGISTER (tenant migration 020) ---------------------
+    RegisterSpec(
+        doc_type_codes=("FIRC_BRC_REGISTER",),
+        table="firc_brc_register",
+        period_column="tax_period",
+        key_kind=KeyKind.NATURAL,
+        key_columns=("entity_id", "gstin", "tax_period", "export_invoice_no"),
+        valid_from_column="invoice_date",
+        columns=(
+            Col("export_invoice_no", _T, required=True),
+            Col("invoice_date", _D, required=True),
+            Col("amount_foreign", _T, required=True),
+            Col("ad_bank", _T, required=True),
+            Col("firc_no", _T),
+            Col("realisation_status", _T, required=True),
+        ),
+    ),
+
+    # --- A7.04 FORM_15CA_15CB (tenant migration 020) ------------------------
+    RegisterSpec(
+        doc_type_codes=("FORM_15CA_15CB",),
+        table="form_15ca_15cb",
+        period_column="tax_period",
+        key_kind=KeyKind.NATURAL,
+        key_columns=("entity_id", "gstin", "tax_period", "form_15ca_ack_no"),
+        columns=(
+            Col("form_15ca_ack_no", _T, required=True),
+            Col("remittee_name", _T, required=True),
+            Col("remittance_amount_inr", _N),
+            Col("nature_of_remittance", _T),
+            Col("form_15cb_cert_no", _T),
+            Col("classification", _T),
+            Col("tax_withheld_inr", _N),
+        ),
+    ),
 )
 
 
