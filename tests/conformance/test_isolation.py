@@ -14,6 +14,8 @@ throughout, both learned from suites that pass while the boundary is broken:
 
 from __future__ import annotations
 
+import uuid
+
 import psycopg
 import pytest
 from psycopg import sql
@@ -61,6 +63,45 @@ async def test_cross_tenant_read_is_denied(
             await conn.execute(
                 sql.SQL("SELECT count(*) FROM {}.transaction_document").format(
                     sql.Identifier(tenant_b.ctx.silver_schema)
+                )
+            )
+
+
+async def test_cross_tenant_admin_table_read_is_denied(
+    app_pool: TenantScopedPool,
+    tenant_a: SeededTenant,
+    tenant_b: SeededTenant,
+    admin: psycopg.Connection[tuple[object, ...]],
+) -> None:
+    """admin_role (tenant migration 025) is a NEW gold table, added after
+    apply_tenant_grants (001_app.sql) was written. It gets isolated with no
+    hand-written grant of its own — step 6 sweeps every non-`__` gold table
+    generically. This proves that sweep actually reached it, rather than
+    trusting the mechanism by inspection alone.
+    """
+    role_name = f"globex-only-role-{uuid.uuid4()}"
+    async with app_pool.transaction(tenant_b.ctx, Role.RECON) as conn:
+        await conn.execute(
+            sql.SQL(
+                "INSERT INTO {}.admin_role (role_name, description) "
+                "VALUES (%s, 'exists only in globex')"
+            ).format(sql.Identifier(tenant_b.ctx.gold_schema)),
+            (role_name,),
+        )
+
+    # POSITIVE CONTROL: the row genuinely exists.
+    control = admin.execute(
+        sql.SQL("SELECT count(*) FROM {}.admin_role WHERE role_name = %s")
+        .format(sql.Identifier(tenant_b.ctx.gold_schema)),
+        (role_name,),
+    ).fetchone()
+    assert control is not None and control[0] == 1, "seed failed — gate is vacuous"
+
+    with pytest.raises(TenantBoundaryViolation):
+        async with app_pool.transaction(tenant_a.ctx, Role.RECON) as conn:
+            await conn.execute(
+                sql.SQL("SELECT count(*) FROM {}.admin_role").format(
+                    sql.Identifier(tenant_b.ctx.gold_schema)
                 )
             )
 

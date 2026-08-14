@@ -24,6 +24,14 @@ class UploadResponse(BaseModel):
 
 class TriggerRequest(BaseModel):
     doc_type_code: str
+    period_start: dt.date | None = None
+    period_end: dt.date | None = None
+    gstin: str | None = None
+    """Only required for the SALES_REGISTER/REGISTER_LOADER/ARCHETYPE1_PROMOTE
+    dispatch mechanisms (src/dispatch/router.py) — a PDF-shaped type
+    (PDF_EXTRACTION) needs none of these, since a PDF is a single dated
+    instrument, not a period export. Omitting a field a mechanism does need
+    is a 422, not a silent no-op."""
 
 
 class TriggerResponse(BaseModel):
@@ -31,9 +39,14 @@ class TriggerResponse(BaseModel):
     ingest_id: uuid.UUID
     doc_type_code: str
     requested_at: dt.datetime
-    status: str = "recorded"
-    """Always "recorded" — no loader runs as a result of this call. See
-    migrations/tenant/015_load_trigger.sql and TODO.md."""
+    status: str
+    """One of SilverReader.artefact_outcome's vocabulary
+    (ACCEPTED/PARTIAL/QUARANTINED) once dispatch_load has actually run, or
+    UNROUTED if doc_type_code has no dispatch_mechanism yet."""
+    mechanism: str | None = None
+    """Which of the four mechanisms in src/dispatch/router.py handled this
+    trigger, or None for UNROUTED."""
+    batch_id: uuid.UUID | None = None
 
 
 class RowRejectionDetail(BaseModel):

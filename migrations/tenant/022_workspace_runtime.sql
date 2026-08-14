@@ -1,5 +1,7 @@
 -- Tenant migration 022 — application runtime facts for GST workspace, CA/HITL,
 -- Data Hub and Command Center. All runtime records remain schema-per-tenant.
+-- Rebuilt from inafin-api's withdrawn proposal — see CLAUDE.md's platform
+-- migration chain entry. Unchanged from the original draft.
 
 CREATE TABLE IF NOT EXISTS {{gold}}.workspace_assessment (
   assessment_id uuid PRIMARY KEY DEFAULT crypto.gen_random_uuid(), entity_id text NOT NULL,

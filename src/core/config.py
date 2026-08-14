@@ -77,6 +77,14 @@ class Settings(BaseSettings):
     # e.g. API_TENANT_TOKENS='{"dev-acme-token": "acme"}'.
     api_tenant_tokens: dict[str, str] = Field(default_factory=dict)
 
+    # --- OCR fallback (src/extraction/ocr.py) ---
+    # Off by default — `paddleocr`/`paddlepaddle` are an optional dependency
+    # group (`pip install .[ocr]`), not a core one, and `PaddleOCR()` pulls
+    # model weights from a hoster on first construction. `make ci` runs
+    # offline, so the default here must stay False; a deployment that wants
+    # the fallback opts in explicitly, same as `virus_scan_provider`.
+    ocr_enabled: bool = False
+
     environment: str = "development"
     log_level: str = "INFO"
 

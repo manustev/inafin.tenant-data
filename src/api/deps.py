@@ -17,6 +17,8 @@ from src.bronze.service import BronzeIngestionService
 from src.core.errors import AuthenticationError
 from src.core.pool import TenantScopedPool
 from src.core.tenant import TenantContext
+from src.extraction.reader import PdfTextPort
+from src.provisioning.objectstore import ObjectStorePort
 from src.reader.entitlement_reader import EntitlementReader
 from src.reader.silver_reader import SilverReader
 
@@ -27,6 +29,14 @@ def get_pool(request: Request) -> TenantScopedPool:
 
 def get_bronze_service(request: Request) -> BronzeIngestionService:
     return request.app.state.bronze_service  # type: ignore[no-any-return]
+
+
+def get_store(request: Request) -> ObjectStorePort:
+    return request.app.state.store  # type: ignore[no-any-return]
+
+
+def get_pdf_text_reader(request: Request) -> PdfTextPort:
+    return request.app.state.pdf_text_reader  # type: ignore[no-any-return]
 
 
 def get_silver_reader(request: Request) -> SilverReader:
@@ -54,5 +64,7 @@ def get_tenant(request: Request) -> TenantContext:
 PoolDep = Annotated[TenantScopedPool, Depends(get_pool)]
 TenantDep = Annotated[TenantContext, Depends(get_tenant)]
 BronzeServiceDep = Annotated[BronzeIngestionService, Depends(get_bronze_service)]
+StoreDep = Annotated[ObjectStorePort, Depends(get_store)]
+PdfTextReaderDep = Annotated[PdfTextPort, Depends(get_pdf_text_reader)]
 SilverReaderDep = Annotated[SilverReader, Depends(get_silver_reader)]
 EntitlementReaderDep = Annotated[EntitlementReader, Depends(get_entitlement_reader)]

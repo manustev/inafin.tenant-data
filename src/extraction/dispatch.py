@@ -1,14 +1,13 @@
 """run_extraction — PDF bytes in, an ExtractionOutcome (and a Silver write) out.
 
 Looked up by `doc_type_code` against a runtime-built registry
-(`src/extraction/registry.py`'s `build_extractor_registry`). This is NOT the
-general Bronze->Silver dispatcher `TODO.md` priority 2 asks for — no
-`doc_type_code -> loader class` table exists for the other archetypes'
-CSV/NDJSON loaders either, and this module only resolves within the ~39 PDF
-extractor types this batch builds. Called directly from tests and a manual
-trigger for now, same as `RegisterLoader`/`EntitlementService` are today — no
-HTTP route wired to it this session (`POST /artefacts/{id}/trigger` stays the
-stub it already was).
+(`src/extraction/registry.py`'s `build_extractor_registry`). This is still
+NOT the general Bronze->Silver dispatcher itself — it only resolves within
+the PDF-shaped extractor types this package builds — but it is no longer
+unreachable from the API: `src/dispatch/router.py`'s `dispatch_load` calls
+this for every `doc_type_code` whose `dispatch_mechanism` is
+`PDF_EXTRACTION`, and `POST /artefacts/{id}/trigger` calls that. Still called
+directly by tests too, same as `RegisterLoader`/`EntitlementService`.
 """
 
 from __future__ import annotations

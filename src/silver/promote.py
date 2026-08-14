@@ -44,10 +44,24 @@ logger = logging.getLogger(__name__)
 #: cannot carry this — it is required non-NULL whenever in_scope
 #: (document_type_scope_ck, shared 003), so it stays permanent classification
 #: data and cannot double as a write-path switch. An explicit set here is the
-#: honest alternative; scoped to PURCHASE_REGISTER only, not "every type with a
-#: table_name", because the other 10 archetype-1 types have not been reviewed
-#: for retirement yet (tenant migration 011's header).
-_RETIRED_ARCHETYPE_1_TYPES: frozenset[str] = frozenset({"PURCHASE_REGISTER"})
+#: honest alternative.
+#:
+#: Reviewed and extended building the dispatch_mechanism registry column
+#: (dispatch item #2): CREDIT_DEBIT_NOTE_REGISTER and
+#: HO_COMMON_INPUT_SERVICE_INVOICE are also archetype 1 in the CSV, but both
+#: already have a typed table + RegisterSpec entry
+#: (`src/silver/registers/catalog.py`) built and DDL-gate-tested in the same
+#: "23 Group A1 registers" batch PURCHASE_REGISTER's retirement note refers
+#: to — this repo just never added them here. `registry/document_types.csv`'s
+#: `dispatch_mechanism=REGISTER_LOADER` for these three is the single source
+#: of truth now; this set exists only so a stray direct call into this
+#: promotion path can't create a second, orphaned write for a type the
+#: register loader already owns.
+_RETIRED_ARCHETYPE_1_TYPES: frozenset[str] = frozenset({
+    "PURCHASE_REGISTER",
+    "CREDIT_DEBIT_NOTE_REGISTER",
+    "HO_COMMON_INPUT_SERVICE_INVOICE",
+})
 
 
 @dataclass(frozen=True, slots=True)

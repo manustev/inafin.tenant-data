@@ -9,9 +9,14 @@ one pool and one set of services per process, built once at startup and
 handed to every request via `request.app.state` (`src/api/deps.py`,
 `src/api/graphql/schema.py`).
 
-Bronze->Silver promotion is deliberately NOT here and never will be
-(HANDOFF-2026-08-07.md "Why the upsert must NOT go behind an API") — the
-trigger route only records intent (`src/api/routes_ingest.py`).
+The trigger route (`src/api/routes_ingest.py`) calls `src/dispatch/router.py`'s
+`dispatch_load` synchronously, in-process, after recording intent
+(`load_trigger`). This does not reopen HANDOFF-2026-08-07.md's "the upsert
+must NOT go behind an API" — that argument is about never putting the loader
+behind a SECOND, remote HTTP hop; nothing here does that. `dispatch_load`
+calls straight into `RegisterLoader`/`SilverPromotionService`/
+`run_extraction`, the same in-process psycopg calls a future worker consuming
+`load_trigger` would make (TODO.md's still-open item, unchanged).
 """
 
 from __future__ import annotations
@@ -29,6 +34,7 @@ from src.bronze.scan import build_scanner
 from src.bronze.service import BronzeIngestionService
 from src.core.config import get_settings
 from src.core.pool import TenantScopedPool
+from src.extraction.reader import FallbackPdfTextReader, PypdfReader
 from src.provisioning.objectstore import S3ObjectStore
 from src.reader.entitlement_reader import EntitlementReader
 from src.reader.silver_reader import SilverReader
@@ -55,6 +61,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
 
     app.state.pool = pool
+    app.state.store = store
     app.state.auth = StaticTokenAuth(settings)
     app.state.bronze_service = BronzeIngestionService(
         pool, store, bucket_prefix=settings.s3_bucket_prefix,
@@ -62,6 +69,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     app.state.silver_reader = SilverReader(pool)
     app.state.entitlement_reader = EntitlementReader(pool)
+
+    # OCR fallback, off by default (Settings.ocr_enabled) — see
+    # src/extraction/ocr.py's module docstring for why the real adapter is
+    # never constructed unless explicitly opted in. FallbackPdfTextReader
+    # with secondary=None is exactly PypdfReader's own behaviour, so this is
+    # always safe to construct.
+    secondary_reader = None
+    if settings.ocr_enabled:
+        from src.extraction.ocr import PaddleOcrReader
+
+        secondary_reader = PaddleOcrReader()
+    app.state.pdf_text_reader = FallbackPdfTextReader(PypdfReader(), secondary_reader)
 
     try:
         yield

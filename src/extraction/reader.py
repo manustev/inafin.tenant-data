@@ -1,22 +1,28 @@
-"""PDF text extraction port, and the one real adapter behind it.
+"""PDF text extraction port, and its adapters.
 
 Same idiom as `src/bronze/scan.py`'s `VirusScanPort`: a narrow `Protocol`,
-one real adapter (`PypdfReader`), no OCR adapter yet. `HANDOFF-2026-08-11.md`
-confirmed all 50 specimen PDFs have a native, machine-generated text layer —
-none are scanned images — so there has never been a case in this workspace
-that would exercise an OCR fallback. Building one now would be exactly the
-"guessed layout, no ground truth" fiction `CLAUDE.md`'s "Why extraction
-adapters are not next" already warns against, one level deeper (this time
-about OCR fidelity rather than document layout). `has_native_text=False`
-routes straight to `NoTextLayer` (`src/extraction/labelvalue.py`), the outcome
-name `TODO.md` already agreed for the scanned-PDF case.
+a primary real adapter (`PypdfReader`). `HANDOFF-2026-08-11.md` confirmed all
+50 specimen PDFs have a native, machine-generated text layer — none are
+scanned images — so nothing in this workspace's fixtures exercises an OCR
+fallback path with real ground truth. `src/extraction/ocr.py`'s
+`PaddleOcrReader` and this module's `FallbackPdfTextReader` close that gap:
+`FallbackPdfTextReader` composes a primary reader with an optional secondary,
+tried only when the primary finds no native text. This resolves the open
+question `HANDOFF-2026-08-11.md` left unanswered — what `NoTextLayer` means
+once OCR exists: it now means "no native layer AND OCR unavailable or also
+found nothing", not a new, separate concept. `PdfText.source` carries which
+one actually produced the text, so a caller (or the future
+`extraction_audit` table this session does not build) can weight OCR-sourced
+text differently — OCR is lossy in a way a native layer is not (a misread
+digit in a GSTIN is a compliance-grade error), so provenance stays visible
+rather than folded away.
 """
 
 from __future__ import annotations
 
 import io
 from dataclasses import dataclass
-from typing import Protocol
+from typing import Literal, Protocol
 
 import pypdf
 
@@ -27,11 +33,14 @@ class PdfText:
 
     `has_native_text` is computed here rather than left for `labelvalue.py`
     to infer, because "is there anything to parse" is a property of the PDF
-    itself, not of any one document type's label spec.
+    itself, not of any one document type's label spec. Despite the name, it
+    is really "is there usable text at all" once a `source="ocr"` result can
+    also produce it — see `FallbackPdfTextReader`.
     """
 
     pages: list[str]
     has_native_text: bool
+    source: Literal["native", "ocr"] = "native"
 
 
 #: A page whose extracted text is shorter than this (after stripping) is
@@ -40,7 +49,7 @@ class PdfText:
 #: characters a scanned PDF's embedded OCR layer or watermark can leave
 #: behind — the threshold exists to separate "nothing to parse" from "a
 #: one-line stub page", not to be a precise boundary.
-_NATIVE_TEXT_MIN_CHARS = 20
+NATIVE_TEXT_MIN_CHARS = 20
 
 
 class PdfTextPort(Protocol):
@@ -72,4 +81,32 @@ class PypdfReader:
         reader = pypdf.PdfReader(io.BytesIO(data))
         pages = [page.extract_text() or "" for page in reader.pages]
         total_chars = sum(len(page.strip()) for page in pages)
-        return PdfText(pages=pages, has_native_text=total_chars >= _NATIVE_TEXT_MIN_CHARS)
+        return PdfText(pages=pages, has_native_text=total_chars >= NATIVE_TEXT_MIN_CHARS)
+
+
+class FallbackPdfTextReader:
+    """Native text first, OCR only if the primary finds none.
+
+    Implements `PdfTextPort` itself, so `src/extraction/dispatch.py`'s
+    `run_extraction(reader=...)` parameter needs no new branch — passing one
+    of these IS how OCR gets wired in; passing nothing (the default,
+    `PypdfReader()`) is exactly today's behaviour, unchanged.
+    """
+
+    def __init__(self, primary: PdfTextPort, secondary: PdfTextPort | None = None) -> None:
+        self._primary = primary
+        self._secondary = secondary
+
+    def extract(self, data: bytes) -> PdfText:
+        primary_result = self._primary.extract(data)
+        if primary_result.has_native_text or self._secondary is None:
+            return primary_result
+
+        secondary_result = self._secondary.extract(data)
+        if not secondary_result.has_native_text:
+            # Neither reader found usable text — NoTextLayer still fires
+            # downstream, now honestly meaning "and OCR didn't help either".
+            return primary_result
+        return PdfText(
+            pages=secondary_result.pages, has_native_text=True, source="ocr",
+        )

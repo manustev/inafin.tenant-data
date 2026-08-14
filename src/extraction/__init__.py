@@ -14,14 +14,15 @@ tier only on failure, never wired live this session.
     base.py       DocumentExtractor ABC + one to_silver() hook per archetype
                   base class (EntitlementExtractor, ...). A concrete per-type
                   class supplies only a label spec — see `registry.py`.
-    registry.py   EXTRACTOR_BY_DOC_TYPE — the one place a document type is
-                  wired to its extractor.
+    registry.py   build_extractor_registry() — reads platform_ref
+                  .document_type at runtime and constructs one extractor
+                  instance per PDF-shaped in-scope document type.
     dispatch.py   run_extraction() — PDF bytes in, ExtractionOutcome out,
                   looked up by doc_type_code.
 
-WHAT THIS IS NOT. Not the general Bronze->Silver dispatcher (`TODO.md`
-priority 2) — it only resolves within the types this package builds
-extractors for. Not an OCR pipeline — `PdfTextPort` has one real adapter and
-a missing text layer always yields `NoTextLayer`. Not an LLM escalation tier —
-a `Partial` outcome quarantines; it does not auto-retry.
+WHAT THIS IS NOT. Not the general Bronze->Silver dispatcher itself
+(`src/dispatch/router.py`) — this package only resolves within the types it
+builds extractors for; `dispatch_load` is what routes a `doc_type_code` to
+here versus a CSV/NDJSON loader. Not an LLM escalation tier — a `Partial`
+outcome quarantines; it does not auto-retry.
 """

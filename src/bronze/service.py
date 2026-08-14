@@ -59,6 +59,16 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
+class ArtefactLedgerEntry:
+    """The metadata a dispatcher needs to route a trigger — not the bytes
+    (`fetch`) and not a disposition (Bronze holds none)."""
+
+    entity_id: uuid.UUID
+    declared_document_type: str
+    original_filename: str | None
+
+
+@dataclass(frozen=True, slots=True)
 class ArtefactReceipt:
     ingest_id: uuid.UUID
     content_hash: bytes
@@ -254,3 +264,34 @@ class BronzeIngestionService:
                 f"bronze object for {ctx} names bucket {bucket}, expected {expected}"
             )
         return self._store.get(bucket=bucket, key=key)
+
+    async def ledger_entry(self, ctx: TenantContext, ingest_id: uuid.UUID) -> ArtefactLedgerEntry:
+        """Read-only metadata lookup, alongside `fetch`'s bytes lookup.
+
+        The dispatcher (`src/dispatch/router.py`) needs `entity_id` and the
+        original filename to route a trigger; neither is on `TriggerRequest`,
+        since the client already declared them at upload time. Bronze is
+        read-only here — no invariant bent, just a second SELECT on the same
+        row `fetch` already reads.
+        """
+        async with self._pool.transaction(ctx, Role.INGEST) as conn:
+            row = await (
+                await conn.execute(
+                    sql.SQL(
+                        "SELECT entity_id, declared_document_type, original_filename"
+                        " FROM {}.artefact_ledger WHERE ingest_id = %s"
+                    ).format(sql.Identifier(ctx.bronze_schema)),
+                    (ingest_id,),
+                )
+            ).fetchone()
+        if row is None:
+            raise KeyError(f"no bronze artefact {ingest_id} for {ctx}")
+
+        entity_id, declared_document_type, original_filename = cast(
+            "tuple[uuid.UUID, str, str | None]", row
+        )
+        return ArtefactLedgerEntry(
+            entity_id=entity_id,
+            declared_document_type=declared_document_type,
+            original_filename=original_filename,
+        )

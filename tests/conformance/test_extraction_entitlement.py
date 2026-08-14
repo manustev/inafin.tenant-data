@@ -132,7 +132,7 @@ def test_no_text_layer_routes_to_the_named_outcome(
     reader = PypdfReader()
     # A syntactically valid, single blank-page PDF, built with pypdf's own
     # writer rather than hand-rolled — pypdf extracts "" from it, which is
-    # well under _NATIVE_TEXT_MIN_CHARS.
+    # well under NATIVE_TEXT_MIN_CHARS.
     writer = pypdf.PdfWriter()
     writer.add_blank_page(width=200, height=200)
     buf = io.BytesIO()

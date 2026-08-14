@@ -75,7 +75,7 @@ def check_file(
             reason=f"file is {len(data)} bytes, exceeding the {max_bytes}-byte limit",
         )
 
-    extension = _extension_of(filename)
+    extension = extension_of(filename)
     if extension not in allowed_extensions:
         return FileCheckResult(
             ok=False,
@@ -88,7 +88,7 @@ def check_file(
     return FileCheckResult(ok=True)
 
 
-def _extension_of(filename: str | None) -> str:
+def extension_of(filename: str | None) -> str:
     """The lowercased suffix after the last '.', or '' for no filename / no dot.
 
     A caller with no filename at all (an API that accepts raw bytes with no

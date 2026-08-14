@@ -1,4 +1,6 @@
 -- Tenant migration 024 — safe API retries for Data Hub uploads.
+-- Rebuilt from inafin-api's withdrawn proposal — see CLAUDE.md's platform
+-- migration chain entry. Unchanged from the original draft.
 ALTER TABLE {{gold}}.datahub_upload_request
   ADD COLUMN IF NOT EXISTS idempotency_key text,
   ADD COLUMN IF NOT EXISTS detected_content_type text;

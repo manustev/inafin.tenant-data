@@ -54,6 +54,7 @@ def _patch_output_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path)
     monkeypatch.setattr(gen, "CADENCE_PATH", tmp_path / "005_out.sql")
     monkeypatch.setattr(gen, "CONTRACT_PATH", tmp_path / "009_out.sql")
     monkeypatch.setattr(gen, "EXTRACTION_SPEC_PATH", tmp_path / "016_out.sql")
+    monkeypatch.setattr(gen, "DISPATCH_MECHANISM_PATH", tmp_path / "017_out.sql")
 
 
 def test_a_malformed_extraction_spec_cell_is_rejected_at_generation_time(
@@ -103,6 +104,58 @@ def test_an_out_of_scope_row_carrying_an_extraction_spec_is_rejected(
     assert "out-of-scope" in err
 
 
+def test_a_dispatch_mechanism_naming_the_wrong_route_is_rejected(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    """`dispatch_mechanism=PDF_EXTRACTION` is only correct when
+    `build_extractor_registry` would actually serve an extractor for that
+    code — same "spec is a projection of the code, not free invention" gate
+    `_check_extraction_specs`/`_check_table_names` already give the other
+    registry columns."""
+    fieldnames, rows = _load_rows()
+    row = next(r for r in rows if r["doc_type_code"] == "GSTR_1")
+    assert not row["extraction_spec"], (
+        "fixture assumption: GSTR_1 has no extraction_spec and is not a "
+        "PDF-shaped register type, so PDF_EXTRACTION is wrong for it"
+    )
+    row["dispatch_mechanism"] = "PDF_EXTRACTION"
+
+    corrupt_csv = tmp_path / "document_types.csv"
+    _write_rows(corrupt_csv, fieldnames, rows)
+
+    monkeypatch.setattr(gen, "CSV_PATH", corrupt_csv)
+    _patch_output_paths(monkeypatch, tmp_path)
+
+    rc = gen.main()
+    err = capsys.readouterr().err
+
+    assert rc == 1
+    assert "GSTR_1" in err
+    assert not gen.DISPATCH_MECHANISM_PATH.exists(), (
+        "a rejected dispatch_mechanism must not reach the generated migration"
+    )
+
+
+def test_an_out_of_scope_row_carrying_a_dispatch_mechanism_is_rejected(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str],
+) -> None:
+    fieldnames, rows = _load_rows()
+    corpus_row = next(r for r in rows if r["stream"] == "CORPUS")
+    corpus_row["dispatch_mechanism"] = "REGISTER_LOADER"
+
+    corrupt_csv = tmp_path / "document_types.csv"
+    _write_rows(corrupt_csv, fieldnames, rows)
+
+    monkeypatch.setattr(gen, "CSV_PATH", corrupt_csv)
+    _patch_output_paths(monkeypatch, tmp_path)
+
+    rc = gen.main()
+    err = capsys.readouterr().err
+
+    assert rc == 1
+    assert "out-of-scope" in err
+
+
 def test_the_real_csv_still_generates_cleanly(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -113,3 +166,4 @@ def test_the_real_csv_still_generates_cleanly(
     rc = gen.main()
     assert rc == 0
     assert gen.EXTRACTION_SPEC_PATH.exists()
+    assert gen.DISPATCH_MECHANISM_PATH.exists()

@@ -1,5 +1,8 @@
 -- Tenant migration 021 — per-tenant ERP connector configuration.
 -- Credentials are PGP-encrypted bytea. Plaintext credentials must never be persisted.
+-- Rebuilt from inafin-api's withdrawn proposal — see CLAUDE.md's platform
+-- migration chain entry. Unchanged from the original draft: already correctly
+-- {{gold}}-scoped, isolated by schema like every other tenant table.
 
 CREATE TABLE IF NOT EXISTS {{gold}}.connector_configuration (
     connector_id uuid PRIMARY KEY DEFAULT crypto.gen_random_uuid(),

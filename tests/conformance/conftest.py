@@ -25,6 +25,7 @@ from src.api.routes_ingest import router as ingest_router
 from src.bronze.service import BronzeIngestionService
 from src.core.config import Settings
 from src.core.pool import TenantScopedPool
+from src.extraction.reader import FallbackPdfTextReader, PypdfReader
 from src.provisioning.objectstore import S3ObjectStore
 from src.reader.entitlement_reader import EntitlementReader
 from src.reader.silver_reader import SilverReader
@@ -54,6 +55,8 @@ async def api_app(
 ) -> FastAPI:
     app = FastAPI()
     app.state.pool = app_pool
+    app.state.store = api_object_store
+    app.state.pdf_text_reader = FallbackPdfTextReader(PypdfReader(), None)
     app.state.auth = StaticTokenAuth(
         Settings(api_tenant_tokens={TOKEN_ACME: TENANT_A, TOKEN_GLOBEX: TENANT_B})
     )

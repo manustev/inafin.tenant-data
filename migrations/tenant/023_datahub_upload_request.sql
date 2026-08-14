@@ -1,6 +1,8 @@
 -- Tenant migration 023 — Data Hub upload requests received by the API.
 -- Object bytes are written only by the object-storage ingestion worker; the API
 -- records metadata and leaves object_uri NULL until that worker completes.
+-- Rebuilt from inafin-api's withdrawn proposal — see CLAUDE.md's platform
+-- migration chain entry. Unchanged from the original draft.
 CREATE TABLE IF NOT EXISTS {{gold}}.datahub_upload_request (
   upload_request_id uuid PRIMARY KEY DEFAULT crypto.gen_random_uuid(),
   document_type_id text NOT NULL,

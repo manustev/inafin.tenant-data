@@ -61,7 +61,7 @@ def test_disallowed_extension_is_rejected() -> None:
 
 
 def test_missing_filename_is_rejected_not_guessed_at() -> None:
-    """No declared format is refused outright — see _extension_of's docstring."""
+    """No declared format is refused outright — see extension_of's docstring."""
     result = check_file(filename=None, data=b"hello")
     assert not result.ok
     assert result.reason is not None and "''" in result.reason

@@ -32,6 +32,17 @@ dev = [
     "boto3-stubs[s3]>=1.35.0",
     "httpx>=0.27.0",
 ]
+# The OCR fallback (src/extraction/ocr.py's PaddleOcrReader), opt-in only —
+# not installed by `make ci`. paddlepaddle alone is ~100MB and PaddleOCR
+# downloads model weights from a hoster on first construction, both wrong
+# for an offline CI default. Settings.ocr_enabled (src/core/config.py)
+# gates whether a deployment that HAS installed this group actually
+# constructs one.
+ocr = [
+    "paddleocr>=3.7.0",
+    "paddlepaddle>=3.3.0",
+    "pypdfium2>=5.13.0",
+]
 
 [project.scripts]
 tenantctl = "src.cli:main"
@@ -90,6 +101,13 @@ namespace_packages = true
 
 [[tool.mypy.overrides]]
 module = ["aiokafka.*"]
+ignore_missing_imports = true
+
+[[tool.mypy.overrides]]
+# Optional dependency group ([project.optional-dependencies] ocr) — not
+# installed by default, so these are always "missing" from mypy's default
+# CI environment, same treatment aiokafka gets above.
+module = ["paddleocr.*", "pypdfium2.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------

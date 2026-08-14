@@ -67,27 +67,27 @@ surprising us.
 
 ---
 
-## Ingestion surface — what's built and what's still missing (2026-08-10)
+## Ingestion surface — what's built and what's still missing (updated 2026-08-14)
 
 `src/api/` — REST upload/trigger/status + GraphQL reads, per the shape agreed
 2026-08-07 (`HANDOFF-2026-08-07.md`). Upload, status, and the GraphQL reads
 wrap real library calls unchanged (`BronzeIngestionService.receive`,
-`SilverReader.artefact_outcome`, `EntitlementReader.find`). Two things are
-explicitly NOT built, and this is where they're tracked:
+`SilverReader.artefact_outcome`, `EntitlementReader.find`).
 
-- [ ] **No Bronze->Silver dispatcher.** `POST /artefacts/{id}/trigger` only
-      INSERTs into `load_trigger` (tenant migration 015) — it does not call any
-      loader. There is no `doc_type_code -> loader` routing anywhere: nothing
-      in `platform_ref.document_type` names which class handles a given type
-      (only `table_name`, a register-family signal, and `archetype`, a
-      structural-family signal). A real dispatcher needs to route to one of:
-      a `RegisterSpec` via `src/silver/registers/catalog.py`'s `spec_for`,
-      `src/silver/promote.py`'s archetype-1 path, `SalesRegisterLoader`
-      (`SALES_REGISTER` only, no spec), or a future entitlement path
-      (`archetype == 3`, unbuilt — see the `entitlement_instrument` item
-      below `TYPED-TABLES-PLAN.md` 11). Until this exists, a trigger is a
-      recorded intent nobody acts on — a worker or manual library call is
-      still the only way an artefact actually gets promoted.
+- [x] **Bronze->Silver dispatcher — DONE, sixth session (2026-08-14).**
+      `src/dispatch/router.py`'s `dispatch_load` reads
+      `platform_ref.document_type.dispatch_mechanism` (shared migration
+      `023`, generated from `registry/document_types.csv`'s new column) and
+      routes to `RegisterLoader`/`SalesRegisterLoader`/
+      `promote_transaction_documents`/`run_extraction`. `POST
+      /artefacts/{id}/trigger` calls it synchronously, in-process, after
+      recording `load_trigger` as before. See CLAUDE.md's "Current state
+      (sixth session)" for the full design and the `entity_id`/`gstin`
+      details `TriggerRequest` gained. The future entitlement path
+      (`archetype == 3`) mentioned in the old version of this item is still
+      unbuilt (`entitlement_instrument`, `TYPED-TABLES-PLAN.md` 11) — adding
+      it needs one new `dispatch_mechanism` value and one new branch in
+      `router.py`, same one-time cost every other mechanism already paid.
 - [ ] **No real auth.** `src/api/auth.py`'s `StaticTokenAuth` is a static
       bearer-token -> slug map from `Settings.api_tenant_tokens` — a
       placeholder satisfying the `AuthPort` Protocol, not a security boundary.
@@ -97,12 +97,39 @@ explicitly NOT built, and this is where they're tracked:
       internet-facing; swapping in a real one is a second `AuthPort`
       implementation, not a route-handler rewrite.
 
-Also not built: a worker process or object-storage watcher that would consume
-`load_trigger` rows (or watch Bronze directly) and actually call a loader —
-the Bronze->Silver load itself stays in-process psycopg by design
-(`HANDOFF-2026-08-07.md` "Why the upsert must NOT go behind an API"), so this
-worker calls a loader library function directly, same as `tests/handoff/`
-does today; it is not a new API.
+Still not built: a worker process or object-storage watcher that would
+consume `load_trigger` rows (or watch Bronze directly) and call
+`dispatch_load` independently of the API request path — not currently
+blocking anything, since the trigger route now calls it directly; a worker
+would be an alternate caller of the same function, not new logic. The
+Bronze->Silver load itself still stays in-process psycopg by design
+(`HANDOFF-2026-08-07.md` "Why the upsert must NOT go behind an API") — the
+sixth session's synchronous in-process call from the trigger route does not
+violate this; see `src/api/app.py`'s module docstring.
+
+**Resolved, seventh session (2026-08-14)**: the `inafin-api` migration
+collision found in the sixth session is settled — that chain is withdrawn
+and rebuilt under this repo's own numbering (shared `024`-`031`, tenant
+`021`-`025`). See CLAUDE.md's "Current state (seventh session)",
+`API-CONTRACT.md`, and `HANDOFF-2026-08-14-session7.md`.
+
+- [ ] **BLOCKING, next session's first item**: `onboarding_customer` and the
+      other onboarding tables (`026`-`028`) were built from table names
+      only, not `inafin-api`'s actual column shapes — `inafin-api`'s own
+      hand-off spec now says the shapes are "materially different" from
+      their write contract. Needs the real
+      `migrations/platform/0002`-`0004` content from `inafin-api`, then a
+      deliberate reconciliation migration. See
+      `HANDOFF-2026-08-14-session7.md` §4.
+- [ ] **This repo's Postgres is now a permanently shared dev server**
+      (`inafin-api`/`inafin-portal` also point at it). `docker compose
+      down -v` must never be run again — see `HANDOFF-2026-08-14-session7.md`
+      §2 and CLAUDE.md's Workflow section.
+- [ ] **`hsn_master`/`sac_master` are seeded empty** (shared migration `029`,
+      seventh session). No real HSN/SAC code list exists anywhere in this
+      workspace. DDL and grants are in place; populate from a real source
+      when one is available. Nothing downstream depends on real rows yet —
+      the onboarding picklist these support is `inafin-api`'s to build.
 
 ---
 
