@@ -22,7 +22,7 @@ after adoption is confirmed.
 
 ## Minimum migration version
 
-- Shared chain: `031_api_principal_issuer.sql`
+- Shared chain: `032_platform_onboarding_contract_reconciliation.sql`
 - Tenant chain: `025_admin_operational_tables.sql` (every tenant)
 
 `platform_ref.api_principal` now carries `issuer` (nullable, unbackfilled —
@@ -32,6 +32,61 @@ NOT enforced yet — there is no identity-provider source of truth in this
 workspace to backfill existing rows from. Do not rely on that pair being
 unique until a follow-up migration adds the backfill, `NOT NULL`, and the
 index, in that order.
+
+### Onboarding tables — reconciled to `inafin-api`'s real write contract (migration `032`)
+
+Migrations `026`–`028` were built from table names alone and guessed columns.
+`inafin-api`'s hand-off spec said the guess was "materially different" from
+its actual write contract and named the required shape for every table.
+Migration `032` adopts that shape verbatim — read the migration file itself
+for full column lists; the load-bearing points:
+
+- **`onboarding_customer`** gained `customer_code` (`UNIQUE NOT NULL`) and
+  `is_enabled`; `status` was renamed `onboarding_status` and its vocabulary
+  changed to `DRAFT | IN_PROGRESS | COMPLETED | CANCELLED` (previously
+  `DRAFT | IN_PROGRESS | SUBMITTED | APPROVED | REJECTED` — do not rely on the
+  old values). Altered in place, not dropped/recreated — `tenant_customer`
+  and every tenant's `deboarding_case.customer_id` FK to it and both survive
+  this migration unmodified.
+- **`principal_customer_access.access_level`** vocabulary is now
+  `READ | WRITE | ADMIN` (previously `OWNER | COLLABORATOR | VIEWER`).
+- **`customer_profile`** absorbed `pan`/`cin`/address-shaped fields that used
+  to live on `onboarding_business_profile`; `onboarding_business_profile`
+  itself is now operating-model fields (`activities`, `business_model`,
+  `b2b_mix`, `locations_count`, `annual_turnover_band`,
+  `monthly_invoice_volume_band`) — the two tables do not share the columns
+  026 originally gave them.
+- **`gst_registration`**: `state_code` → `state`, `status` →
+  `registration_status`, plus new `registration_type` and `is_enabled`. No
+  `CHECK` vocabulary on `registration_type`/`registration_status` —
+  `inafin-api` has not enumerated one; free text until it does.
+- **`customer_document`**: rebuilt around `inafin-api`'s own document
+  workflow — `document_name` (free text), `category`
+  (`COMPANY | GST | BUSINESS`), `requirement`
+  (`Required | Recommended | Optional`), `document_status`
+  (`Uploaded | Missing | Verifying`). The registry-keyed `doc_type_code`
+  column from the old shape is kept as an **optional, nullable** bridge to
+  `platform_ref.document_type` — not part of this contract, never required,
+  safe to leave `NULL` on every insert. `data_requirement` carries the same
+  optional `doc_type_code` bridge for the same reason.
+- **`onboarding_state.state`** is a single opaque `jsonb` document — the old
+  `current_step`/`completed_steps[]` typed columns are gone. Treat this as
+  persisted wizard state, not a status summary.
+- **`smart_question_run`** gained `input_fingerprint`, `recommender_type`,
+  `recommender_version`, `failure_reason`; `status` vocabulary is now
+  `GENERATED | FAILED | SUPERSEDED`. Exactly one `GENERATED` row per customer
+  is enforced by a partial unique index on `customer_id` — a second
+  `INSERT ... status = 'GENERATED'` for the same customer will fail the
+  index, not silently succeed; supersede the prior run's status first.
+- **`hsn_master`/`sac_master`** columns are now exactly `hsn_code` /
+  `hsn_description`, `gst_rate`, `is_active` (`sac_code` / `sac_description`
+  for the SAC table) — the old `effective_from`/`effective_to` validity
+  window is gone. Still seeded empty; see `TODO.md`.
+
+No table in this section changed which role or grant reaches it — the
+ambient `app_login` access from migration `030` (read-only lookups vs.
+`SELECT, INSERT, UPDATE` on the onboarding-write tables) is unchanged and
+was reissued by `032` against the new column shapes.
 
 ## How `inafin-api` connects
 

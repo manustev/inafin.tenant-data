@@ -124,7 +124,12 @@
       "Bash(INAFIN_RUN_OCR_TESTS=1 python3 -m pytest tests/conformance/test_ocr_reader.py -q)",
       "Bash(find /Users/manusteve/workspace/inafin/inafin-tenant-data -iname \"*recon_doc4*\" 2>&1; echo \"---\"; find /Users/manusteve/workspace/inafin -iname \"*recon_doc4*\" 2>&1)",
       "Bash(find /Users/manusteve/workspace/inafin -iname \"tenant-data-api-compatibility.sql\" 2>&1)",
-      "Read(//Users/manusteve/workspace/inafin/inafin-api/docs/**)"
+      "Read(//Users/manusteve/workspace/inafin/inafin-api/docs/**)",
+      "Bash(find / -iname \"tenant-data-api-compatibility.sql\")",
+      "Bash(find / -type d -iname \"inafin-api*\")",
+      "Bash(find / -iname \"0002_onboarding*\")",
+      "Bash(find / -iname \"0001_identity_access*\")",
+      "Bash(sort -t_ -k1 -n)"
     ],
     "additionalDirectories": [
       "/tmp",

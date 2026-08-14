@@ -113,14 +113,26 @@ and rebuilt under this repo's own numbering (shared `024`-`031`, tenant
 `021`-`025`). See CLAUDE.md's "Current state (seventh session)",
 `API-CONTRACT.md`, and `HANDOFF-2026-08-14-session7.md`.
 
-- [ ] **BLOCKING, next session's first item**: `onboarding_customer` and the
-      other onboarding tables (`026`-`028`) were built from table names
-      only, not `inafin-api`'s actual column shapes — `inafin-api`'s own
-      hand-off spec now says the shapes are "materially different" from
-      their write contract. Needs the real
-      `migrations/platform/0002`-`0004` content from `inafin-api`, then a
-      deliberate reconciliation migration. See
-      `HANDOFF-2026-08-14-session7.md` §4.
+- [x] **RESOLVED (eighth session, 2026-08-14)**: `onboarding_customer` and
+      the other onboarding tables (`026`-`028`) were built from table names
+      only, not `inafin-api`'s actual column shapes. `inafin-api` supplied
+      the exact column list per table directly (not the withdrawn
+      `migrations/platform/0002`-`0004` files themselves, which were never
+      retrieved) and shared migration
+      `032_platform_onboarding_contract_reconciliation.sql` adopts it
+      verbatim. `onboarding_customer` was altered in place (its `customer_id`
+      is FK'd from `tenant_customer` and every tenant's `deboarding_case`);
+      every other onboarding table and `hsn_master`/`sac_master` were dropped
+      and recreated (confirmed zero rows in all of them against the live
+      cluster first). One flagged, deliberate deviation: `customer_document`/
+      `data_requirement` keep an optional nullable `doc_type_code` bridge to
+      the Document Type Registry alongside `inafin-api`'s own free-text
+      document workflow fields — not part of their contract, never required
+      by it. See `API-CONTRACT.md`'s new "Onboarding tables — reconciled"
+      section for the full column-level diff. Verified: `make migrate` zero
+      drift, `make lint`/`make typecheck` clean, full suite 542 passed / 2
+      skipped / the same one pre-existing `test_isolation.py` ordering
+      failure (item `0a`, untouched).
 - [ ] **This repo's Postgres is now a permanently shared dev server**
       (`inafin-api`/`inafin-portal` also point at it). `docker compose
       down -v` must never be run again — see `HANDOFF-2026-08-14-session7.md`

@@ -86,6 +86,66 @@ uvicorn src.api.app:app      # the ingestion surface (REST + GraphQL)
   fails, restore. A suite nobody has seen fail is indistinguishable from
   `assert True`.
 
+## Current state (2026-08-14, eighth session)
+
+**Item `00` from the seventh session's "Next session starts here" is
+resolved.** The onboarding tables (shared migrations `026`-`028`, guessed
+from table names only) are reconciled against `inafin-api`'s real write
+contract in new shared migration
+`032_platform_onboarding_contract_reconciliation.sql`. `inafin-api` supplied
+the exact column list per table directly in this session (rather than the
+withdrawn `migrations/platform/0002`-`0004` files being retrieved and read),
+and `032` adopts it verbatim, table by table — see `API-CONTRACT.md`'s new
+"Onboarding tables — reconciled" section for the column-level diff (renamed
+columns, changed CHECK vocabularies, columns that moved from one table to
+another, columns dropped).
+
+**`onboarding_customer` was altered in place, not dropped** — confirmed via
+`information_schema` that `platform_ref.tenant_customer` and every tenant
+schema's `deboarding_case.customer_id` FK it directly, so a `DROP TABLE`
+(even `CASCADE`) would have silently stripped a real constraint in every
+tenant schema. Every other onboarding table, plus `hsn_master`/`sac_master`,
+were confirmed (queried against the live cluster, not assumed) to hold zero
+rows and were dropped and recreated cleanly, then re-granted table-for-table
+to match what migration `030` already granted `app_login` — `030` itself
+was not touched and needed no changes, since it grants by table name only.
+
+**One deliberate, flagged deviation from the literal contract**:
+`inafin-api`'s own hand-off note said `customer_document`'s
+`document_id`/`doc_type_code`/`status` fields "cannot safely substitute" for
+their document-workflow shape — their contract has no `doc_type_code` at
+all, using free-text `document_name`/`category`/`requirement` instead. Rather
+than silently dropping the Document Type Registry linkage the seventh
+session's design specifically wanted ("the onboarding document picklist and
+the ingestion registry are one list, not two"), `customer_document` and
+`data_requirement` each keep `doc_type_code` as an **optional, nullable**
+bridge column — not part of `inafin-api`'s contract, never required by it,
+costs nothing sitting `NULL`. Flagged in both the migration file's header and
+`API-CONTRACT.md`, not resolved by fiat.
+
+**No vocabulary was invented for fields `inafin-api` didn't enumerate** —
+`gst_registration.registration_type`/`registration_status` and
+`data_requirement.category`/`priority`/`requirement_status` are free text,
+no `CHECK`. Inventing a plausible-looking `CHECK` vocabulary is exactly what
+made `026`-`028`'s first attempt wrong once already (`onboarding_customer
+.status`, `gst_registration.status`); this session did not repeat it.
+
+**Verified against the live (not reset) cluster**: `make migrate` (shared
+`032` applied, zero drift across both tenants), `make lint`/`make typecheck`
+clean, full suite 542 passed / 2 skipped / the same one pre-existing
+`test_isolation.py::test_support_is_read_only` ordering failure from the
+fourth session (item `0a`, untouched — not caused by this session). Grant
+surface reverified directly against `information_schema.role_table_grants`
+for `app_login`, not by inspection: the reconciled tables carry exactly the
+same read-only-vs-read/write split migration `030` already declared.
+
+**Not done this session, unchanged**: item `0a` (the pre-existing ordering
+test bug) and every other "Next session starts here" item below except `00`.
+No code outside `migrations/shared/032_...sql`, `API-CONTRACT.md`, and
+`TODO.md` was touched.
+
+---
+
 ## Current state (2026-08-14, seventh session)
 
 **The `inafin-api` migration collision from the sixth session is resolved —
@@ -795,22 +855,18 @@ first, including its late-session addendum. Do not re-propose restoring
 `/tmp/inafin_api_migrations_holding/`; that sequence is formally withdrawn
 and superseded by shared migrations `024`-`031` / tenant `021`-`025`.
 
-**Read `HANDOFF-2026-08-14-session7.md` before doing anything else this
-session** — it has the full detail and the exact open question below.
+**Read `HANDOFF-2026-08-14-session7.md` for the seventh session's context.
+Item `00` it raised is DONE as of the eighth session** — see "Current state
+(eighth session)" above and `API-CONTRACT.md`'s "Onboarding tables —
+reconciled" section. Do not re-propose reconciling `026`-`028` against
+`inafin-api`'s contract; migration `032` already did it, verbatim, from
+column lists `inafin-api` supplied directly. The one thing still genuinely
+open from that item: `customer_document`/`data_requirement`'s optional
+`doc_type_code` bridge column was a unilateral call, not confirmed with
+`inafin-api` — fine to leave as-is (it's nullable and costs nothing), but if
+`inafin-api` ever says the bridge is unwanted, dropping it is a one-line
+follow-up migration, not a redesign.
 
-00. **Reconcile `platform_ref.onboarding_customer` and the other onboarding
-    tables (migrations `026`-`028`) against `inafin-api`'s real write
-    contract.** These were built from table names only, guessed at the
-    column level — `inafin-api`'s hand-off spec
-    (`inafin-api/docs/tenant-data-api-compatibility.sql`) says the shapes
-    are "materially different" and explicitly says not to patch this with
-    ad hoc `ALTER`s. **Get the actual content of `inafin-api`'s
-    `migrations/platform/0002_onboarding_smart_questions.sql` through
-    `0004_onboarding_state.sql`** (the withdrawn files themselves, not just
-    table names) and either adopt their column shapes directly, or design a
-    deliberate versioned replacement contract with `inafin-api` adapting to
-    it — not another single-session guess. This blocks `inafin-api` actually
-    integrating the onboarding flow.
 0. **Never run `docker compose down -v` or reset this Postgres, ever** —
    permanent standing rule as of the seventh session (this server is now
    shared with `inafin-api`/`inafin-portal`). The old item 0 here used to
