@@ -1,0 +1,78 @@
+{
+  "gstin": "33AABCV1234K1ZK",
+  "fy": "2024-25",
+  "form": "GSTR9",
+  "filing_status": "Filed",
+  "arn": "AA3312257382745H",
+  "filing_date": "18-12-2025",
+  "table4": {
+    "B_b2b": {
+      "txval": 7552203.42,
+      "iamt": 709368.04,
+      "camt": 262312.34,
+      "samt": 262312.31,
+      "csamt": 0.0
+    },
+    "G_inward_rcm": {
+      "txval": 0.0,
+      "tax": 0.0
+    },
+    "N_supplies_on_which_tax_payable": {
+      "txval": 7552203.42
+    }
+  },
+  "table5": {
+    "A_zero_rated_without_payment": {
+      "txval": 642394.14
+    },
+    "N_supplies_on_which_tax_not_payable": {
+      "txval": 642394.14
+    }
+  },
+  "table6": {
+    "A_itc_as_per_3b": {
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0
+    },
+    "B_inputs_and_services": {
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0
+    },
+    "E_import_of_goods": {
+      "iamt": 0.0
+    }
+  },
+  "table8": {
+    "A_itc_as_per_2B": {
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0
+    },
+    "B_itc_availed_in_3b": {
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0
+    },
+    "D_difference": {
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0
+    }
+  },
+  "table9_tax_paid": {
+    "igst": 709368.04,
+    "cgst": 262312.34,
+    "sgst": 262312.31
+  },
+  "table11_supplies_declared_after_march": {
+    "txval": 0.0
+  },
+  "table14_differential_tax_paid": {
+    "igst": 0.0,
+    "cgst": 0.0,
+    "sgst": 0.0
+  },
+  "mock_note": "Table 4 is built from GSTR-1; Table 9 from GSTR-3B. The Sep-2024 3B under-declaration therefore surfaces as a Table 4 vs Table 9 gap."
+}

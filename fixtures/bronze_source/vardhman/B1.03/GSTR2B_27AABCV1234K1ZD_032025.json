@@ -1,0 +1,204 @@
+{
+  "data": {
+    "gstin": "27AABCV1234K1ZD",
+    "rtnprd": "032025",
+    "version": "2.0",
+    "gendt": "14-04-2025",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "29AAGFN7799P1ZY",
+          "trdnm": "NIRMAL PACKAGING INDUSTRIES",
+          "supprd": "032025",
+          "supfileddt": "11-04-2025",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "NIR/24-25/6331",
+              "typ": "R",
+              "idt": "04-03-2025",
+              "val": 156437.0,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 132573.73,
+                  "igst": 23863.27,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "NIR/24-25/5334",
+              "typ": "R",
+              "idt": "07-03-2025",
+              "val": 2477123.15,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 2099256.91,
+                  "igst": 377866.24,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AABCM5511D1ZT",
+          "trdnm": "MYSORE CASTINGS PRIVATE LIMITED",
+          "supprd": "032025",
+          "supfileddt": "11-04-2025",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "MYS/24-25/1259",
+              "typ": "R",
+              "idt": "09-03-2025",
+              "val": 20042.38,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 16985.07,
+                  "igst": 3057.31,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "27AADCI7733E1ZL",
+          "trdnm": "INDUS FORGINGS AND ALLOYS PRIVATE LIMITED",
+          "supprd": "032025",
+          "supfileddt": "11-04-2025",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "IND/24-25/4618",
+              "typ": "R",
+              "idt": "06-03-2025",
+              "val": 17718.88,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 15016.0,
+                  "igst": 0.0,
+                  "cgst": 1351.44,
+                  "sgst": 1351.44,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "IND/24-25/8334",
+              "typ": "R",
+              "idt": "22-03-2025",
+              "val": 56358.11,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 47761.11,
+                  "igst": 0.0,
+                  "cgst": 4298.5,
+                  "sgst": 4298.5,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cdnr": [],
+      "impg": [],
+      "isd": [
+        {
+          "ctin": "29AABCV1234K2Z8",
+          "trdnm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+          "doctype": "ISD",
+          "docnum": "ISD/24-25/032025",
+          "docdt": "31-03-2025",
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0.0
+        }
+      ]
+    },
+    "itcsumm": {
+      "itcavl": {
+        "b2b": {
+          "igst": 404786.82,
+          "cgst": 5649.94,
+          "sgst": 5649.94,
+          "cess": 0
+        },
+        "impg": {
+          "igst": 0.0,
+          "cgst": 0,
+          "sgst": 0,
+          "cess": 0
+        },
+        "isd": {
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      },
+      "itcnotavl": {
+        "b2b": {
+          "igst": 0.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      }
+    }
+  }
+}

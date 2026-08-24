@@ -453,15 +453,31 @@ async def test_no_tenant_role_can_write_schema_identity(
 async def test_support_is_read_only(
     app_pool: TenantScopedPool, tenant_a: SeededTenant
 ) -> None:
+    """SUPPORT may SELECT but never write.
+
+    The read half asserts against the SEEDED ROW BY ITS PRIMARY KEY, not a
+    table-wide `count(*)`. An absolute count is not a property of the SUPPORT
+    grant at all — it is a property of whichever other tests happened to run
+    first in the same session, and every one of them writes under a fresh
+    `entity_id` precisely so it cannot collide with the seed. Counting the
+    whole table defeated that: `test_transaction.py` and
+    `test_api_ingest.py` each promote one legitimate row of their own, so the
+    count was 3 by the time alphabetical collection reached this file, and 1
+    only when this file ran alone. Pinning the seeded `doc_id` is both
+    order-independent and a stronger assertion — it proves SUPPORT can read
+    the row the seed actually wrote, where a count proved only that SUPPORT
+    could read *something*.
+    """
     async with app_pool.transaction(tenant_a.ctx, Role.SUPPORT) as conn:
         got = await (
             await conn.execute(
-                sql.SQL("SELECT count(*) FROM {}.transaction_document").format(
-                    sql.Identifier(tenant_a.ctx.silver_schema)
-                )
+                sql.SQL(
+                    "SELECT doc_number FROM {}.transaction_document WHERE doc_id = %s"
+                ).format(sql.Identifier(tenant_a.ctx.silver_schema)),
+                (tenant_a.invoice_id,),
             )
         ).fetchone()
-        assert got is not None and got[0] == 1
+        assert got is not None and got[0] == COLLIDING_INVOICE_NUMBER
 
     with pytest.raises(TenantBoundaryViolation):
         async with app_pool.transaction(tenant_a.ctx, Role.SUPPORT) as conn:

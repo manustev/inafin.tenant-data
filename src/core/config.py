@@ -85,6 +85,25 @@ class Settings(BaseSettings):
     # the fallback opts in explicitly, same as `virus_scan_provider`.
     ocr_enabled: bool = False
 
+    # --- Category B source connectors (src/connectors/) ---
+    # "local_fixture" (default): every doc_type_code's fetch() is answered
+    # from source_fixture_root instead of a live HTTP call — no GSP/ICEGATE/
+    # DGFT/IRP/EWB-portal credentials exist in this workspace yet. "live"
+    # routes through src/connectors/factory.py's per-source_system adapter,
+    # each of which raises ConnectorNotConfiguredError until its entry in
+    # the two dicts below is populated. Same on/off idiom as
+    # virus_scan_provider: the flag is read once, in factory.py, never
+    # branched on anywhere else.
+    source_data_mode: str = "local_fixture"
+    source_fixture_root: str = "fixtures/bronze_source"
+    # source_system -> base URL / Vault secret reference. Both empty by
+    # default for every key; a deployment configures one source system at a
+    # time as GSP/ICEGATE/DGFT/IRP contracts are actually signed. Read as a
+    # JSON object, e.g.
+    # SOURCE_CONNECTOR_BASE_URLS='{"GSTN_API": "https://gsp.example.com"}'.
+    source_connector_base_urls: dict[str, str] = Field(default_factory=dict)
+    source_connector_credential_refs: dict[str, str] = Field(default_factory=dict)
+
     environment: str = "development"
     log_level: str = "INFO"
 

@@ -1,0 +1,204 @@
+{
+  "data": {
+    "gstin": "27AABCV1234K1ZD",
+    "rtnprd": "022025",
+    "version": "2.0",
+    "gendt": "14-03-2025",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "29AABCA2244T1Z8",
+          "trdnm": "APEX INDUSTRIAL SERVICES PRIVATE LIMITED",
+          "supprd": "022025",
+          "supfileddt": "11-03-2025",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "APE/24-25/9456",
+              "typ": "R",
+              "idt": "09-02-2025",
+              "val": 3473.01,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 2943.23,
+                  "igst": 529.78,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "APE/24-25/4909",
+              "typ": "R",
+              "idt": "02-02-2025",
+              "val": 1605549.57,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1360635.23,
+                  "igst": 244914.34,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "24AACCG9911B1Z0",
+          "trdnm": "GAURAV POLYMERS PRIVATE LIMITED",
+          "supprd": "022025",
+          "supfileddt": "11-03-2025",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "GAU/24-25/6493",
+              "typ": "R",
+              "idt": "07-02-2025",
+              "val": 1251159.65,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1060304.79,
+                  "igst": 190854.86,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "GAU/24-25/2497",
+              "typ": "R",
+              "idt": "16-02-2025",
+              "val": 18536.34,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 15708.76,
+                  "igst": 2827.58,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AAACV6688Y1ZQ",
+          "trdnm": "VISHWA ENTERPRISES PRIVATE LIMITED",
+          "supprd": "022025",
+          "supfileddt": "11-03-2025",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "VIS/24-25/5337",
+              "typ": "R",
+              "idt": "02-02-2025",
+              "val": 67950.29,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 60669.9,
+                  "igst": 7280.39,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cdnr": [],
+      "impg": [],
+      "isd": [
+        {
+          "ctin": "29AABCV1234K2Z8",
+          "trdnm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+          "doctype": "ISD",
+          "docnum": "ISD/24-25/022025",
+          "docdt": "28-02-2025",
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0.0
+        }
+      ]
+    },
+    "itcsumm": {
+      "itcavl": {
+        "b2b": {
+          "igst": 446406.95,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        },
+        "impg": {
+          "igst": 0.0,
+          "cgst": 0,
+          "sgst": 0,
+          "cess": 0
+        },
+        "isd": {
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      },
+      "itcnotavl": {
+        "b2b": {
+          "igst": 0.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      }
+    }
+  }
+}

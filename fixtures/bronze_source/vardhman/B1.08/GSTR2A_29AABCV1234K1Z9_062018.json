@@ -1,0 +1,349 @@
+{
+  "gstin": "29AABCV1234K1Z9",
+  "fp": "062018",
+  "b2b": [
+    {
+      "ctin": "29AAACB1199C1ZV",
+      "cfs": "Y",
+      "fldtr1": "10-07-2018",
+      "fldprd": "062018",
+      "inv": [
+        {
+          "inum": "BHA/18-19/811",
+          "idt": "16-06-2018",
+          "val": 508574.1,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 430995.0,
+                "iamt": 0.0,
+                "camt": 38789.55,
+                "samt": 38789.55,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "BHA/18-19/234",
+          "idt": "24-06-2018",
+          "val": 139864.22,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 118529.0,
+                "iamt": 0.0,
+                "camt": 10667.61,
+                "samt": 10667.61,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AABCM5511D1ZT",
+      "cfs": "Y",
+      "fldtr1": "10-07-2018",
+      "fldprd": "062018",
+      "inv": [
+        {
+          "inum": "MYS/18-19/897",
+          "idt": "24-06-2018",
+          "val": 812780.46,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 688797.0,
+                "iamt": 0.0,
+                "camt": 61991.73,
+                "samt": 61991.73,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "MYS/18-19/722",
+          "idt": "14-06-2018",
+          "val": 256941.46,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 217747.0,
+                "iamt": 0.0,
+                "camt": 19597.23,
+                "samt": 19597.23,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "MYS/18-19/198",
+          "idt": "04-06-2018",
+          "val": 224681.44,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 190408.0,
+                "iamt": 0.0,
+                "camt": 17136.72,
+                "samt": 17136.72,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "MYS/18-19/403",
+          "idt": "06-06-2018",
+          "val": 248555.2,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 210640.0,
+                "iamt": 0.0,
+                "camt": 18957.6,
+                "samt": 18957.6,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "27AADCI7733E1ZL",
+      "cfs": "Y",
+      "fldtr1": "10-07-2018",
+      "fldprd": "062018",
+      "inv": [
+        {
+          "inum": "IND/18-19/249",
+          "idt": "07-06-2018",
+          "val": 577945.12,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 489784.0,
+                "iamt": 88161.12,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "IND/18-19/426",
+          "idt": "25-06-2018",
+          "val": 764893.7,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 648215.0,
+                "iamt": 116678.7,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "24AACCG9911B1Z0",
+      "cfs": "Y",
+      "fldtr1": "10-07-2018",
+      "fldprd": "062018",
+      "inv": [
+        {
+          "inum": "GAU/18-19/339",
+          "idt": "28-06-2018",
+          "val": 1058137.86,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 896727.0,
+                "iamt": 161410.86,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "GAU/18-19/220",
+          "idt": "28-06-2018",
+          "val": 389530.98,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 330111.0,
+                "iamt": 59419.98,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "GAU/18-19/290",
+          "idt": "22-06-2018",
+          "val": 518340.96,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 439272.0,
+                "iamt": 79068.96,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "33AAHFS3355G1ZA",
+      "cfs": "Y",
+      "fldtr1": "10-07-2018",
+      "fldprd": "062018",
+      "inv": [
+        {
+          "inum": "SUN/18-19/394",
+          "idt": "01-06-2018",
+          "val": 690984.4,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 585580.0,
+                "iamt": 105404.4,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "SUN/18-19/952",
+          "idt": "02-06-2018",
+          "val": 795488.74,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "chksum": "",
+          "cfs": "Y",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 674143.0,
+                "iamt": 121345.74,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "cdn": [],
+  "isd": [],
+  "impg": [],
+  "mock_note": "Pre-GSTR-2B period sample for Forensic Mode (FY 2018-19)."
+}

@@ -1,0 +1,213 @@
+{
+  "data": {
+    "gstin": "27AABCV1234K1ZD",
+    "rtnprd": "052024",
+    "version": "2.0",
+    "gendt": "14-06-2024",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "24AACCG9911B1Z0",
+          "trdnm": "GAURAV POLYMERS PRIVATE LIMITED",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "GAU/24-25/2041",
+              "typ": "R",
+              "idt": "17-05-2024",
+              "val": 193661.1,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 172911.7,
+                  "igst": 20749.4,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "33AAHFS3355G1ZA",
+          "trdnm": "SUNRISE TOOLING SOLUTIONS",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "SUN/24-25/4003",
+              "typ": "R",
+              "idt": "30-05-2024",
+              "val": 37110.4,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 31449.49,
+                  "igst": 5660.91,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "SUN/24-25/3180",
+              "typ": "R",
+              "idt": "23-05-2024",
+              "val": 24090.41,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 20415.6,
+                  "igst": 3674.81,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AABCM5511D1ZT",
+          "trdnm": "MYSORE CASTINGS PRIVATE LIMITED",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "MYS/24-25/5438",
+              "typ": "R",
+              "idt": "23-05-2024",
+              "val": 30199.93,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 25593.16,
+                  "igst": 4606.77,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AAACV6688Y1ZQ",
+          "trdnm": "VISHWA ENTERPRISES PRIVATE LIMITED",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "VIS/24-25/6771",
+              "typ": "R",
+              "idt": "14-05-2024",
+              "val": 3051950.17,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 2586398.45,
+                  "igst": 465551.72,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cdnr": [],
+      "impg": [],
+      "isd": [
+        {
+          "ctin": "29AABCV1234K2Z8",
+          "trdnm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+          "doctype": "ISD",
+          "docnum": "ISD/24-25/052024",
+          "docdt": "31-05-2024",
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0.0
+        }
+      ]
+    },
+    "itcsumm": {
+      "itcavl": {
+        "b2b": {
+          "igst": 500243.61,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        },
+        "impg": {
+          "igst": 0.0,
+          "cgst": 0,
+          "sgst": 0,
+          "cess": 0
+        },
+        "isd": {
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      },
+      "itcnotavl": {
+        "b2b": {
+          "igst": 0.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      }
+    }
+  }
+}

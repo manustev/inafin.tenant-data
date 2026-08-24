@@ -1,0 +1,213 @@
+{
+  "data": {
+    "gstin": "27AABCV1234K1ZD",
+    "rtnprd": "092024",
+    "version": "2.0",
+    "gendt": "14-10-2024",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "29AAACV6688Y1ZQ",
+          "trdnm": "VISHWA ENTERPRISES PRIVATE LIMITED",
+          "supprd": "092024",
+          "supfileddt": "11-10-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "VIS/24-25/1270",
+              "typ": "R",
+              "idt": "10-09-2024",
+              "val": 38752.1,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 32840.76,
+                  "igst": 5911.34,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "VIS/24-25/7022",
+              "typ": "R",
+              "idt": "08-09-2024",
+              "val": 956221.74,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 810357.41,
+                  "igst": 145864.33,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AAGFN7799P1ZY",
+          "trdnm": "NIRMAL PACKAGING INDUSTRIES",
+          "supprd": "092024",
+          "supfileddt": "11-10-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "NIR/24-25/9214",
+              "typ": "R",
+              "idt": "13-09-2024",
+              "val": 347837.3,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 310569.02,
+                  "igst": 37268.28,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AAACB1199C1ZV",
+          "trdnm": "BHARAT SPECIAL STEELS LIMITED",
+          "supprd": "092024",
+          "supfileddt": "11-10-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "BHA/24-25/5576",
+              "typ": "R",
+              "idt": "02-09-2024",
+              "val": 41313.03,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 35011.04,
+                  "igst": 6301.99,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "33AAHFS3355G1ZA",
+          "trdnm": "SUNRISE TOOLING SOLUTIONS",
+          "supprd": "092024",
+          "supfileddt": "11-10-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "SUN/24-25/2737",
+              "typ": "R",
+              "idt": "12-09-2024",
+              "val": 1472976.94,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1248285.54,
+                  "igst": 224691.4,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cdnr": [],
+      "impg": [],
+      "isd": [
+        {
+          "ctin": "29AABCV1234K2Z8",
+          "trdnm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+          "doctype": "ISD",
+          "docnum": "ISD/24-25/092024",
+          "docdt": "30-09-2024",
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0.0
+        }
+      ]
+    },
+    "itcsumm": {
+      "itcavl": {
+        "b2b": {
+          "igst": 420037.34,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        },
+        "impg": {
+          "igst": 0.0,
+          "cgst": 0,
+          "sgst": 0,
+          "cess": 0
+        },
+        "isd": {
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      },
+      "itcnotavl": {
+        "b2b": {
+          "igst": 0.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      }
+    }
+  }
+}

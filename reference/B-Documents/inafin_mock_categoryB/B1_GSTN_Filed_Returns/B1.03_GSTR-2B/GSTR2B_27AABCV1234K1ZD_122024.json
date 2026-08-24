@@ -1,0 +1,195 @@
+{
+  "data": {
+    "gstin": "27AABCV1234K1ZD",
+    "rtnprd": "122024",
+    "version": "2.0",
+    "gendt": "14-01-2025",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "29AAGFN7799P1ZY",
+          "trdnm": "NIRMAL PACKAGING INDUSTRIES",
+          "supprd": "122024",
+          "supfileddt": "11-01-2025",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "NIR/24-25/3369",
+              "typ": "R",
+              "idt": "13-12-2024",
+              "val": 1372274.44,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1162944.44,
+                  "igst": 209330.0,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "NIR/24-25/4648",
+              "typ": "R",
+              "idt": "07-12-2024",
+              "val": 1092729.98,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 926042.36,
+                  "igst": 166687.62,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "NIR/24-25/2330",
+              "typ": "R",
+              "idt": "30-12-2024",
+              "val": 506302.99,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 429070.33,
+                  "igst": 77232.66,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AABCM5511D1ZT",
+          "trdnm": "MYSORE CASTINGS PRIVATE LIMITED",
+          "supprd": "122024",
+          "supfileddt": "11-01-2025",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "MYS/24-25/8276",
+              "typ": "R",
+              "idt": "24-12-2024",
+              "val": 8363.46,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 7087.68,
+                  "igst": 1275.78,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "MYS/24-25/7543",
+              "typ": "R",
+              "idt": "19-12-2024",
+              "val": 2453.83,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 2190.92,
+                  "igst": 262.91,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cdnr": [],
+      "impg": [],
+      "isd": [
+        {
+          "ctin": "29AABCV1234K2Z8",
+          "trdnm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+          "doctype": "ISD",
+          "docnum": "ISD/24-25/122024",
+          "docdt": "31-12-2024",
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0.0
+        }
+      ]
+    },
+    "itcsumm": {
+      "itcavl": {
+        "b2b": {
+          "igst": 454788.97,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        },
+        "impg": {
+          "igst": 0.0,
+          "cgst": 0,
+          "sgst": 0,
+          "cess": 0
+        },
+        "isd": {
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      },
+      "itcnotavl": {
+        "b2b": {
+          "igst": 0.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      }
+    }
+  }
+}

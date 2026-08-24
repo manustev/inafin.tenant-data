@@ -34,6 +34,7 @@ from src.bronze.scan import build_scanner
 from src.bronze.service import BronzeIngestionService
 from src.core.config import get_settings
 from src.core.pool import TenantScopedPool
+from src.events.publisher import BatchPublisher
 from src.extraction.reader import FallbackPdfTextReader, PypdfReader
 from src.provisioning.objectstore import S3ObjectStore
 from src.reader.entitlement_reader import EntitlementReader
@@ -82,9 +83,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
         secondary_reader = PaddleOcrReader()
     app.state.pdf_text_reader = FallbackPdfTextReader(PypdfReader(), secondary_reader)
 
+    # Pipeline 2's doorbell. Started here, alongside the pool, so a broker
+    # outage at process startup degrades to poll-only (BatchPublisher.start's
+    # own fallback) rather than failing app startup entirely — the same
+    # "Kafka is an optimisation" reasoning src/events/publisher.py's module
+    # docstring states.
+    batch_publisher = BatchPublisher(
+        settings.kafka_bootstrap, settings.kafka_batch_topic, enabled=settings.kafka_enabled,
+    )
+    await batch_publisher.start()
+    app.state.batch_publisher = batch_publisher
+
     try:
         yield
     finally:
+        await batch_publisher.stop()
         await pool.close()
 
 

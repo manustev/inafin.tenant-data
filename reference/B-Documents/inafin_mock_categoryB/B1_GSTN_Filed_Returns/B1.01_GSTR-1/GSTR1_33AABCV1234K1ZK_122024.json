@@ -1,0 +1,191 @@
+{
+  "gstin": "33AABCV1234K1ZK",
+  "fp": "122024",
+  "gt": null,
+  "cur_gt": null,
+  "filing_status": "Filed",
+  "arn": "AA3301258603172M",
+  "filing_date": "11-01-2025",
+  "b2b": [
+    {
+      "ctin": "29AAFCQ2233R1ZV",
+      "inv": [
+        {
+          "inum": "VPI/TN/24-25/0010",
+          "idt": "13-12-2024",
+          "val": 590834.15,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "SEWOP",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 590834.15,
+                "iamt": 0.0,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/TN/24-25/0011",
+          "idt": "06-12-2024",
+          "val": 2204.11,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "SEWOP",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 12,
+                "txval": 2204.11,
+                "iamt": 0.0,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AACCS7712F1ZB",
+      "inv": [
+        {
+          "inum": "VPI/TN/24-25/0012",
+          "idt": "29-12-2024",
+          "val": 190160.69,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 161153.13,
+                "iamt": 29007.56,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2cl": [],
+  "b2cs": [
+    {
+      "sply_ty": "INTRA",
+      "typ": "OE",
+      "pos": "33",
+      "rt": 18,
+      "txval": 156504.67,
+      "iamt": 0.0,
+      "camt": 14085.42,
+      "samt": 14085.42,
+      "csamt": 0
+    },
+    {
+      "sply_ty": "INTRA",
+      "typ": "OE",
+      "pos": "33",
+      "rt": 12,
+      "txval": 178113.49,
+      "iamt": 0.0,
+      "camt": 10686.81,
+      "samt": 10686.81,
+      "csamt": 0
+    }
+  ],
+  "cdnr": [],
+  "exp": [],
+  "at": [],
+  "nil": {
+    "inv": [
+      {
+        "sply_ty": "INTRB2B",
+        "expt_amt": 0,
+        "nil_amt": 0,
+        "ngsup_amt": 0
+      }
+    ]
+  },
+  "hsn": {
+    "data": [
+      {
+        "num": 1,
+        "hsn_sc": "40169390",
+        "uqc": "NOS",
+        "qty": 20,
+        "rt": 12,
+        "txval": 2204.11,
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      },
+      {
+        "num": 2,
+        "hsn_sc": "72085190",
+        "uqc": "MTS",
+        "qty": 13,
+        "rt": 18,
+        "txval": 751987.28,
+        "iamt": 29007.56,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      },
+      {
+        "num": 3,
+        "hsn_sc": "84819090",
+        "uqc": "NOS",
+        "qty": 1,
+        "rt": 12,
+        "txval": 178113.49,
+        "iamt": 0.0,
+        "camt": 10686.81,
+        "samt": 10686.81,
+        "csamt": 0
+      },
+      {
+        "num": 4,
+        "hsn_sc": "84819090",
+        "uqc": "NOS",
+        "qty": 1,
+        "rt": 18,
+        "txval": 156504.67,
+        "iamt": 0.0,
+        "camt": 14085.42,
+        "samt": 14085.42,
+        "csamt": 0
+      }
+    ]
+  },
+  "doc_issue": {
+    "doc_det": [
+      {
+        "doc_num": 1,
+        "docs": [
+          {
+            "num": 1,
+            "from_num": "VPI/TN/24-25/0010",
+            "to_num": "VPI/TN/24-25/0012",
+            "totnum": 3,
+            "cancel": 0,
+            "net_issue": 3
+          }
+        ]
+      }
+    ]
+  }
+}

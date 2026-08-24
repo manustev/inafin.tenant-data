@@ -1,0 +1,140 @@
+{
+  "gstin": "27AABCV1234K1ZD",
+  "ret_period": "092024",
+  "form": "GSTR3B",
+  "sup_details": {
+    "osup_det": {
+      "txval": 4330343.12,
+      "iamt": 437034.2,
+      "camt": 132711.04,
+      "samt": 132711.03,
+      "csamt": 0.0
+    },
+    "osup_zero": {
+      "txval": 0.0,
+      "iamt": 0.0,
+      "csamt": 0.0
+    },
+    "osup_nil_exmp": {
+      "txval": 0.0
+    },
+    "isup_rev": {
+      "txval": 94419.0,
+      "iamt": 0.0,
+      "camt": 2360.48,
+      "samt": 2360.47,
+      "csamt": 0.0
+    },
+    "osup_nongst": {
+      "txval": 0.0
+    }
+  },
+  "inter_sup": {
+    "unreg_details": [],
+    "comp_details": [],
+    "uin_details": []
+  },
+  "itc_elg": {
+    "itc_avl": [
+      {
+        "ty": "IMPG",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "IMPS",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "ISRC",
+        "iamt": 0.0,
+        "camt": 2360.48,
+        "samt": 2360.47,
+        "csamt": 0.0
+      },
+      {
+        "ty": "ISD",
+        "iamt": 72000.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 420037.34,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      }
+    ],
+    "itc_rev": [
+      {
+        "ty": "RUL",
+        "iamt": 4998.45,
+        "camt": 4851.43,
+        "samt": 4851.43,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      }
+    ],
+    "itc_net": {
+      "iamt": 487038.89,
+      "camt": -2490.95,
+      "samt": -2490.96,
+      "csamt": 0.0
+    },
+    "itc_inelg": [
+      {
+        "ty": "RUL",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      }
+    ]
+  },
+  "inward_sup": {
+    "isup_details": [
+      {
+        "ty": "GST",
+        "inter": 0.0,
+        "intra": 0.0
+      },
+      {
+        "ty": "NONGST",
+        "inter": 0.0,
+        "intra": 0.0
+      }
+    ]
+  },
+  "intr_ltfee": {
+    "intr_details": {
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0,
+      "csamt": 0.0
+    }
+  },
+  "filing_status": "Filed",
+  "notes_for_mock": [],
+  "arn": "AA2710248476611K",
+  "filing_date": "20-10-2024"
+}

@@ -1,0 +1,269 @@
+{
+  "gstin": "27AABCV1234K1ZD",
+  "fp": "122024",
+  "gt": null,
+  "cur_gt": null,
+  "filing_status": "Filed",
+  "arn": "AA2701254151952M",
+  "filing_date": "11-01-2025",
+  "b2b": [
+    {
+      "ctin": "29AACCS7712F1ZB",
+      "inv": [
+        {
+          "inum": "VPI/MH/24-25/0049",
+          "idt": "09-12-2024",
+          "val": 330946.16,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 280462.85,
+                "iamt": 50483.31,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/MH/24-25/0051",
+          "idt": "04-12-2024",
+          "val": 714612.22,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 605603.58,
+                "iamt": 109008.64,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "27AAEFS1122H1ZJ",
+      "inv": [
+        {
+          "inum": "VPI/MH/24-25/0050",
+          "idt": "19-12-2024",
+          "val": 758484.79,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 642783.72,
+                "iamt": 0.0,
+                "camt": 57850.54,
+                "samt": 57850.53,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "19AAACB6677K1Z6",
+      "inv": [
+        {
+          "inum": "VPI/MH/24-25/0052",
+          "idt": "19-12-2024",
+          "val": 890896.57,
+          "pos": "19",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 754997.09,
+                "iamt": 135899.48,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "36AABCD4455L1ZH",
+      "inv": [
+        {
+          "inum": "VPI/MH/24-25/0053",
+          "idt": "13-12-2024",
+          "val": 459441.72,
+          "pos": "36",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 389357.39,
+                "iamt": 70084.33,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AAGFK9012M1ZX",
+      "inv": [
+        {
+          "inum": "VPI/MH/24-25/0054",
+          "idt": "20-12-2024",
+          "val": 160638.8,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 136134.58,
+                "iamt": 24504.22,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2cl": [],
+  "b2cs": [
+    {
+      "sply_ty": "INTRA",
+      "typ": "OE",
+      "pos": "27",
+      "rt": 18,
+      "txval": 341139.42,
+      "iamt": 0.0,
+      "camt": 30702.55,
+      "samt": 30702.55,
+      "csamt": 0
+    },
+    {
+      "sply_ty": "INTRA",
+      "typ": "OE",
+      "pos": "27",
+      "rt": 12,
+      "txval": 674880.89,
+      "iamt": 0.0,
+      "camt": 40492.86,
+      "samt": 40492.85,
+      "csamt": 0
+    }
+  ],
+  "cdnr": [],
+  "exp": [],
+  "at": [],
+  "nil": {
+    "inv": [
+      {
+        "sply_ty": "INTRB2B",
+        "expt_amt": 0,
+        "nil_amt": 0,
+        "ngsup_amt": 0
+      }
+    ]
+  },
+  "hsn": {
+    "data": [
+      {
+        "num": 1,
+        "hsn_sc": "84139110",
+        "uqc": "NOS",
+        "qty": 74,
+        "rt": 18,
+        "txval": 1275423.82,
+        "iamt": 229576.28,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      },
+      {
+        "num": 2,
+        "hsn_sc": "84819090",
+        "uqc": "NOS",
+        "qty": 1,
+        "rt": 12,
+        "txval": 674880.89,
+        "iamt": 0.0,
+        "camt": 40492.86,
+        "samt": 40492.85,
+        "csamt": 0
+      },
+      {
+        "num": 3,
+        "hsn_sc": "84819090",
+        "uqc": "NOS",
+        "qty": 70,
+        "rt": 18,
+        "txval": 1120057.72,
+        "iamt": 24504.22,
+        "camt": 88553.09,
+        "samt": 88553.08,
+        "csamt": 0
+      },
+      {
+        "num": 4,
+        "hsn_sc": "998719",
+        "uqc": "OTH",
+        "qty": 1,
+        "rt": 18,
+        "txval": 754997.09,
+        "iamt": 135899.48,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      }
+    ]
+  },
+  "doc_issue": {
+    "doc_det": [
+      {
+        "doc_num": 1,
+        "docs": [
+          {
+            "num": 1,
+            "from_num": "VPI/MH/24-25/0049",
+            "to_num": "VPI/MH/24-25/0054",
+            "totnum": 6,
+            "cancel": 0,
+            "net_issue": 6
+          }
+        ]
+      }
+    ]
+  }
+}

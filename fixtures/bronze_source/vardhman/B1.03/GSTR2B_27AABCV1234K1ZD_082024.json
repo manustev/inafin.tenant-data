@@ -1,0 +1,213 @@
+{
+  "data": {
+    "gstin": "27AABCV1234K1ZD",
+    "rtnprd": "082024",
+    "version": "2.0",
+    "gendt": "14-09-2024",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "29AAGFN7799P1ZY",
+          "trdnm": "NIRMAL PACKAGING INDUSTRIES",
+          "supprd": "082024",
+          "supfileddt": "11-09-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "NIR/24-25/5368",
+              "typ": "R",
+              "idt": "19-08-2024",
+              "val": 24062.94,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 20392.32,
+                  "igst": 3670.62,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "24AACCG9911B1Z0",
+          "trdnm": "GAURAV POLYMERS PRIVATE LIMITED",
+          "supprd": "082024",
+          "supfileddt": "11-09-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "GAU/24-25/6188",
+              "typ": "R",
+              "idt": "13-08-2024",
+              "val": 3867.53,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 3453.15,
+                  "igst": 414.38,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "GAU/24-25/2695",
+              "typ": "R",
+              "idt": "19-08-2024",
+              "val": 44400.41,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 37627.47,
+                  "igst": 6772.94,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AAACV6688Y1ZQ",
+          "trdnm": "VISHWA ENTERPRISES PRIVATE LIMITED",
+          "supprd": "082024",
+          "supfileddt": "11-09-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "VIS/24-25/7679",
+              "typ": "R",
+              "idt": "02-08-2024",
+              "val": 1646095.1,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1394995.85,
+                  "igst": 251099.25,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "27AADCI7733E1ZL",
+          "trdnm": "INDUS FORGINGS AND ALLOYS PRIVATE LIMITED",
+          "supprd": "082024",
+          "supfileddt": "11-09-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "IND/24-25/4285",
+              "typ": "R",
+              "idt": "18-08-2024",
+              "val": 1466345.69,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1242665.84,
+                  "igst": 0.0,
+                  "cgst": 111839.93,
+                  "sgst": 111839.92,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cdnr": [],
+      "impg": [],
+      "isd": [
+        {
+          "ctin": "29AABCV1234K2Z8",
+          "trdnm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+          "doctype": "ISD",
+          "docnum": "ISD/24-25/082024",
+          "docdt": "31-08-2024",
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0.0
+        }
+      ]
+    },
+    "itcsumm": {
+      "itcavl": {
+        "b2b": {
+          "igst": 261957.19,
+          "cgst": 111839.93,
+          "sgst": 111839.92,
+          "cess": 0
+        },
+        "impg": {
+          "igst": 0.0,
+          "cgst": 0,
+          "sgst": 0,
+          "cess": 0
+        },
+        "isd": {
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      },
+      "itcnotavl": {
+        "b2b": {
+          "igst": 0.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      }
+    }
+  }
+}

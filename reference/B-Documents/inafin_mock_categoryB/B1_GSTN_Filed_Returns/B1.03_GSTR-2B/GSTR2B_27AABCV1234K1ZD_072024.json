@@ -1,0 +1,204 @@
+{
+  "data": {
+    "gstin": "27AABCV1234K1ZD",
+    "rtnprd": "072024",
+    "version": "2.0",
+    "gendt": "14-08-2024",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "24AACCG9911B1Z0",
+          "trdnm": "GAURAV POLYMERS PRIVATE LIMITED",
+          "supprd": "072024",
+          "supfileddt": "11-08-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "GAU/24-25/2536",
+              "typ": "R",
+              "idt": "21-07-2024",
+              "val": 314485.73,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 266513.33,
+                  "igst": 47972.4,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "GAU/24-25/6688",
+              "typ": "R",
+              "idt": "20-07-2024",
+              "val": 6760.03,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 5728.84,
+                  "igst": 1031.19,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCO3399Z1Z4",
+          "trdnm": "ORION METALS PRIVATE LIMITED",
+          "supprd": "072024",
+          "supfileddt": "11-08-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "ORI/24-25/2966",
+              "typ": "R",
+              "idt": "17-07-2024",
+              "val": 1096359.65,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 929118.35,
+                  "igst": 0.0,
+                  "cgst": 83620.65,
+                  "sgst": 83620.65,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "ORI/24-25/8971",
+              "typ": "R",
+              "idt": "24-07-2024",
+              "val": 9113.92,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 7723.66,
+                  "igst": 0.0,
+                  "cgst": 695.13,
+                  "sgst": 695.13,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AAACB1199C1ZV",
+          "trdnm": "BHARAT SPECIAL STEELS LIMITED",
+          "supprd": "072024",
+          "supfileddt": "11-08-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "BHA/24-25/5025",
+              "typ": "R",
+              "idt": "26-07-2024",
+              "val": 1447935.31,
+              "pos": "27",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1227063.82,
+                  "igst": 220871.49,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cdnr": [],
+      "impg": [],
+      "isd": [
+        {
+          "ctin": "29AABCV1234K2Z8",
+          "trdnm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+          "doctype": "ISD",
+          "docnum": "ISD/24-25/072024",
+          "docdt": "31-07-2024",
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0.0
+        }
+      ]
+    },
+    "itcsumm": {
+      "itcavl": {
+        "b2b": {
+          "igst": 269875.08,
+          "cgst": 84315.78,
+          "sgst": 84315.78,
+          "cess": 0
+        },
+        "impg": {
+          "igst": 0.0,
+          "cgst": 0,
+          "sgst": 0,
+          "cess": 0
+        },
+        "isd": {
+          "igst": 72000.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      },
+      "itcnotavl": {
+        "b2b": {
+          "igst": 0.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      }
+    }
+  }
+}

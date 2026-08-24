@@ -1,0 +1,699 @@
+{
+  "gstin": "29AABCV1234K1Z9",
+  "fp": "112024",
+  "gt": null,
+  "cur_gt": null,
+  "filing_status": "Filed",
+  "arn": "AA2912242441955P",
+  "filing_date": "11-12-2024",
+  "b2b": [
+    {
+      "ctin": "07AAACN8899J1ZP",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0141",
+          "idt": "10-11-2024",
+          "val": 676110.32,
+          "pos": "07",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 572974.85,
+                "iamt": 103135.47,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0143",
+          "idt": "25-11-2024",
+          "val": 49741.28,
+          "pos": "07",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 42153.63,
+                "iamt": 7587.65,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0147",
+          "idt": "02-11-2024",
+          "val": 151355.61,
+          "pos": "07",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 128267.47,
+                "iamt": 23088.14,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0150",
+          "idt": "19-11-2024",
+          "val": 51371.69,
+          "pos": "07",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 43535.33,
+                "iamt": 7836.36,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "19AAACB6677K1Z6",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0142",
+          "idt": "08-11-2024",
+          "val": 2460061.62,
+          "pos": "19",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 2084797.98,
+                "iamt": 375263.64,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0144",
+          "idt": "16-11-2024",
+          "val": 149673.88,
+          "pos": "19",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 126842.27,
+                "iamt": 22831.61,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0146",
+          "idt": "14-11-2024",
+          "val": 34779.55,
+          "pos": "19",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 12,
+                "txval": 31053.17,
+                "iamt": 3726.38,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29ADHPG5566Q1ZQ",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0145",
+          "idt": "22-11-2024",
+          "val": 13114.46,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 12,
+                "txval": 11709.34,
+                "iamt": 0.0,
+                "camt": 702.56,
+                "samt": 702.56,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AACCS7712F1ZB",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0148",
+          "idt": "22-11-2024",
+          "val": 314226.72,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 266293.83,
+                "iamt": 0.0,
+                "camt": 23966.45,
+                "samt": 23966.44,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0152",
+          "idt": "25-11-2024",
+          "val": 846470.26,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 717347.68,
+                "iamt": 0.0,
+                "camt": 64561.29,
+                "samt": 64561.29,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0153",
+          "idt": "27-11-2024",
+          "val": 233073.42,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 197519.85,
+                "iamt": 0.0,
+                "camt": 17776.79,
+                "samt": 17776.78,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "27AAEFS1122H1ZJ",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0149",
+          "idt": "17-11-2024",
+          "val": 19430.68,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 16466.68,
+                "iamt": 2964.0,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0155",
+          "idt": "25-11-2024",
+          "val": 494582.29,
+          "pos": "27",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 419137.53,
+                "iamt": 75444.76,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AAGFK9012M1ZX",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0151",
+          "idt": "13-11-2024",
+          "val": 117993.43,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 99994.43,
+                "iamt": 0.0,
+                "camt": 8999.5,
+                "samt": 8999.5,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "36AABCD4455L1ZH",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0154",
+          "idt": "11-11-2024",
+          "val": 15976.42,
+          "pos": "36",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 13539.34,
+                "iamt": 2437.08,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AAFCQ2233R1ZV",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0156",
+          "idt": "03-11-2024",
+          "val": 89710.28,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "SEWOP",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 89710.28,
+                "iamt": 0.0,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2cl": [
+    {
+      "pos": "32",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0159",
+          "idt": "09-11-2024",
+          "val": 3371100.79,
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 2856865.08,
+                "iamt": 514235.71,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "pos": "36",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0160",
+          "idt": "08-11-2024",
+          "val": 2521274.03,
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 12,
+                "txval": 2251137.53,
+                "iamt": 270136.5,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2cs": [
+    {
+      "sply_ty": "INTRA",
+      "typ": "OE",
+      "pos": "29",
+      "rt": 18,
+      "txval": 447216.53,
+      "iamt": 0.0,
+      "camt": 40249.49,
+      "samt": 40249.49,
+      "csamt": 0
+    },
+    {
+      "sply_ty": "INTRA",
+      "typ": "OE",
+      "pos": "29",
+      "rt": 12,
+      "txval": 1262494.45,
+      "iamt": 0.0,
+      "camt": 75749.67,
+      "samt": 75749.66,
+      "csamt": 0
+    }
+  ],
+  "cdnr": [
+    {
+      "ctin": "29AACCS7712F1ZB",
+      "nt": [
+        {
+          "ntty": "C",
+          "nt_num": "VPI/KA/CN/24-25/013",
+          "nt_dt": "16-11-2024",
+          "inum": "VPI/KA/24-25/0036",
+          "idt": "26-05-2024",
+          "val": 25405.95,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 21530.47,
+                "iamt": 0.0,
+                "camt": 1937.74,
+                "samt": 1937.74,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AAAGK3344N1Z0",
+      "nt": [
+        {
+          "ntty": "C",
+          "nt_num": "VPI/KA/CN/24-25/014",
+          "nt_dt": "23-11-2024",
+          "inum": "VPI/KA/24-25/0014",
+          "idt": "26-04-2024",
+          "val": 2643.0,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 2239.83,
+                "iamt": 0.0,
+                "camt": 201.59,
+                "samt": 201.58,
+                "csamt": 0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "exp": [
+    {
+      "exp_typ": "WOPAY",
+      "inv": [
+        {
+          "inum": "VPI/KA/24-25/0157",
+          "idt": "04-11-2024",
+          "val": 2696303.25,
+          "sbpcode": "INBLR4",
+          "sbnum": "7100195",
+          "sbdt": "08-11-2024",
+          "itms": [
+            {
+              "txval": 2696303.25,
+              "rt": 18,
+              "iamt": 0,
+              "csamt": 0
+            }
+          ]
+        },
+        {
+          "inum": "VPI/KA/24-25/0158",
+          "idt": "15-11-2024",
+          "val": 1425036.83,
+          "sbpcode": "INBLR4",
+          "sbnum": "7100208",
+          "sbdt": "22-11-2024",
+          "itms": [
+            {
+              "txval": 1425036.83,
+              "rt": 18,
+              "iamt": 0,
+              "csamt": 0
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "at": [
+    {
+      "pos": "07",
+      "sply_ty": "INTER",
+      "itms": [
+        {
+          "rt": 18,
+          "ad_amt": 586525.0,
+          "iamt": 105574.5,
+          "camt": 0.0,
+          "samt": 0.0,
+          "csamt": 0
+        }
+      ]
+    },
+    {
+      "pos": "27",
+      "sply_ty": "INTER",
+      "itms": [
+        {
+          "rt": 18,
+          "ad_amt": 168767.0,
+          "iamt": 30378.06,
+          "camt": 0.0,
+          "samt": 0.0,
+          "csamt": 0
+        }
+      ]
+    }
+  ],
+  "nil": {
+    "inv": [
+      {
+        "sply_ty": "INTRB2B",
+        "expt_amt": 0,
+        "nil_amt": 0,
+        "ngsup_amt": 0
+      }
+    ]
+  },
+  "hsn": {
+    "data": [
+      {
+        "num": 1,
+        "hsn_sc": "40169390",
+        "uqc": "NOS",
+        "qty": 129,
+        "rt": 12,
+        "txval": 2293900.04,
+        "iamt": 273862.88,
+        "camt": 702.56,
+        "samt": 702.56,
+        "csamt": 0
+      },
+      {
+        "num": 2,
+        "hsn_sc": "72085190",
+        "uqc": "MTS",
+        "qty": 10,
+        "rt": 18,
+        "txval": 2084797.98,
+        "iamt": 375263.64,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      },
+      {
+        "num": 3,
+        "hsn_sc": "73181500",
+        "uqc": "KGS",
+        "qty": 132,
+        "rt": 18,
+        "txval": 2853151.54,
+        "iamt": 28232.69,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      },
+      {
+        "num": 4,
+        "hsn_sc": "84139110",
+        "uqc": "NOS",
+        "qty": 71,
+        "rt": 18,
+        "txval": 1040910.23,
+        "iamt": 133811.26,
+        "camt": 26776.29,
+        "samt": 26776.28,
+        "csamt": 0
+      },
+      {
+        "num": 5,
+        "hsn_sc": "84819090",
+        "uqc": "NOS",
+        "qty": 1,
+        "rt": 12,
+        "txval": 1262494.45,
+        "iamt": 0.0,
+        "camt": 75749.67,
+        "samt": 75749.66,
+        "csamt": 0
+      },
+      {
+        "num": 6,
+        "hsn_sc": "84819090",
+        "uqc": "NOS",
+        "qty": 116,
+        "rt": 18,
+        "txval": 5579711.73,
+        "iamt": 522072.07,
+        "camt": 104810.78,
+        "samt": 104810.78,
+        "csamt": 0
+      },
+      {
+        "num": 7,
+        "hsn_sc": "998719",
+        "uqc": "OTH",
+        "qty": 2,
+        "rt": 18,
+        "txval": 685431.36,
+        "iamt": 75444.76,
+        "camt": 23966.45,
+        "samt": 23966.44,
+        "csamt": 0
+      }
+    ]
+  },
+  "doc_issue": {
+    "doc_det": [
+      {
+        "doc_num": 1,
+        "docs": [
+          {
+            "num": 1,
+            "from_num": "VPI/KA/24-25/0141",
+            "to_num": "VPI/KA/24-25/0160",
+            "totnum": 20,
+            "cancel": 0,
+            "net_issue": 20
+          }
+        ]
+      }
+    ]
+  }
+}

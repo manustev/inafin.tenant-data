@@ -1,0 +1,223 @@
+{
+  "description": "Deliberate defects seeded into this mock dataset. Each one should be caught by the corresponding INAFIN reconciliation check. Use this as the expected-results fixture for your test suite.",
+  "seed": 20240401,
+  "financial_year": "2024-25",
+  "count": 19,
+  "anomalies": [
+    {
+      "anomaly_id": "MOCK-01",
+      "code": "B1.04-AMEND",
+      "doc_refs": [
+        "B1.03",
+        "B1.04",
+        "B1.05"
+      ],
+      "period": "112024",
+      "description": "Supplier APEX INDUSTRIAL SERVICES PRIVATE LIMITED amended invoice APE/24-25/9483 in Jan-25; taxable value reduced from 29262.42 to 21068.94. ITC already availed in Nov-24 3B.",
+      "expected_detection": "Excess ITC availed = tax differential; reversal with interest u/s 50(3) expected."
+    },
+    {
+      "anomaly_id": "MOCK-02",
+      "code": "B2.07-CANCEL-CUST",
+      "doc_refs": [
+        "B2.02",
+        "B2.07"
+      ],
+      "period": "FY2024-25",
+      "description": "Outward invoices raised on BENGAL PUMPS AND SEALS PRIVATE LIMITED (19AAACB6677K1Z6) after its registration was cancelled w.e.f. 30-09-2024.",
+      "expected_detection": "GSTIN status at invoice date check must flag these; buyer ITC is void."
+    },
+    {
+      "anomaly_id": "MOCK-03",
+      "code": "B2.03-CANCEL-SUPP",
+      "doc_refs": [
+        "B2.03",
+        "B2.07",
+        "B1.03"
+      ],
+      "period": "FY2024-25",
+      "description": "ITC availed on invoices of VISHWA ENTERPRISES PRIVATE LIMITED dated after cancellation (31-12-2024).",
+      "expected_detection": "ITC ineligible; must be reversed. Status-at-invoice-date test, not current status."
+    },
+    {
+      "anomaly_id": "MOCK-04",
+      "code": "B5.02-EGM",
+      "doc_refs": [
+        "B5.01",
+        "B5.02"
+      ],
+      "period": "FY2024-25",
+      "description": "Shipping bill for export invoice VPI/KA/24-25/0057 has EGM not filed.",
+      "expected_detection": "EGM status check - IGST refund / LUT export validation blocked until EGM filed."
+    },
+    {
+      "anomaly_id": "MOCK-05",
+      "code": "B5.01-FOB",
+      "doc_refs": [
+        "B1.01",
+        "B5.01"
+      ],
+      "period": "FY2024-25",
+      "description": "FOB value on shipping bill for VPI/KA/24-25/0098 exceeds GSTR-1 Table 6A value by 6.2%.",
+      "expected_detection": "Three-way match: sales invoice vs GSTR-1 Table 6A vs ICEGATE shipping bill."
+    },
+    {
+      "anomaly_id": "MOCK-06",
+      "code": "B6.01-BRC",
+      "doc_refs": [
+        "B6.01",
+        "D2.01"
+      ],
+      "period": "FY2024-25",
+      "description": "Export invoice VPI/KA/24-25/0037 has no eBRC/FIRC - realisation beyond 12 months.",
+      "expected_detection": "Rule 96A: IGST + interest payable if proceeds unrealised in 12 months absent RBI extension."
+    },
+    {
+      "anomaly_id": "MOCK-07",
+      "code": "B5.01-SBMISS",
+      "doc_refs": [
+        "B1.01",
+        "B5.01"
+      ],
+      "period": "FY2024-25",
+      "description": "GSTR-1 Table 6A for VPI/KA/24-25/0078 carries no shipping bill number.",
+      "expected_detection": "Invoice-to-shipping-bill linkage missing; ICEGATE-GSTN data flow will not validate."
+    },
+    {
+      "anomaly_id": "MOCK-08",
+      "code": "B1.05-3B-VS-1",
+      "doc_refs": [
+        "B1.01",
+        "B1.05",
+        "B3.02"
+      ],
+      "period": "092024",
+      "description": "Sep-2024 GSTR-3B Table 3.1(a) understates outward taxable value vs GSTR-1 by one B2B invoice.",
+      "expected_detection": "GSTR-1 vs GSTR-3B liability reconciliation; matches DRC-01B notice in B3.02."
+    },
+    {
+      "anomaly_id": "MOCK-09",
+      "code": "B1.05-ITC-SHORT",
+      "doc_refs": [
+        "B1.03",
+        "B1.05"
+      ],
+      "period": "102024",
+      "description": "Oct-2024 ITC availed is 80% of GSTR-2B eligible ITC (deferred availment).",
+      "expected_detection": "2B vs 3B Table 4A(5) reconciliation; recovery opportunity per Circular 183/15/2022."
+    },
+    {
+      "anomaly_id": "MOCK-10",
+      "code": "B1.05-ITC-EXCESS",
+      "doc_refs": [
+        "B1.03",
+        "B1.05"
+      ],
+      "period": "012025",
+      "description": "Jan-2025 CGST/SGST ITC availed is 106% of GSTR-2B eligible ITC.",
+      "expected_detection": "Section 16(2)(aa) cap breach; excess ITC + interest u/s 50(3)."
+    },
+    {
+      "anomaly_id": "MOCK-11",
+      "code": "B1.02-LATE",
+      "doc_refs": [
+        "B1.02"
+      ],
+      "period": "072024",
+      "description": "Jul-2024 GSTR-1 and GSTR-3B for the Karnataka GSTIN filed after the due date.",
+      "expected_detection": "Late fee and Section 50 interest computation from due date."
+    },
+    {
+      "anomaly_id": "MOCK-12",
+      "code": "B1.09-ISD-PREREG",
+      "doc_refs": [
+        "B1.09",
+        "B2.01",
+        "B2.06"
+      ],
+      "period": "042024-072024",
+      "description": "ISD distributed credit to the Tamil Nadu GSTIN for periods before its registration effective date (12-08-2024).",
+      "expected_detection": "ISD distribution must only go to GSTINs registered on the distribution date - Rule 39."
+    },
+    {
+      "anomaly_id": "MOCK-13",
+      "code": "B1.11-TCS-BASE",
+      "doc_refs": [
+        "B1.11",
+        "D1.01"
+      ],
+      "period": "122024",
+      "description": "Amazon GSTR-8 net supply value for POS 29 in Dec-2024 exceeds the seller's own marketplace turnover by 9%.",
+      "expected_detection": "GSTR-8 vs MTR vs GSTR-1 three-way marketplace reconciliation (Section A9)."
+    },
+    {
+      "anomaly_id": "MOCK-14",
+      "code": "B3.07-RFD-60DAY",
+      "doc_refs": [
+        "B3.07"
+      ],
+      "period": "102024-122024",
+      "description": "RFD-01 for Q3 FY2024-25 has a deficiency memo (RFD-03) and has crossed the 60-day processing window.",
+      "expected_detection": "60-day refund processing deadline monitoring and interest u/s 56."
+    },
+    {
+      "anomaly_id": "MOCK-15",
+      "code": "B4.01-NO-IRN",
+      "doc_refs": [
+        "B4.01",
+        "B1.01",
+        "B4.04"
+      ],
+      "period": "FY2024-25",
+      "description": "Three B2B/export invoices above the e-invoice threshold have no IRN: VPI/KA/24-25/0012, VPI/KA/24-25/0076, VPI/KA/24-25/0128",
+      "expected_detection": "Invoice without IRN is legally defective (Rule 48(5)) once taxpayer crosses threshold; buyer ITC at risk."
+    },
+    {
+      "anomaly_id": "MOCK-16",
+      "code": "B4.02-NO-EWB",
+      "doc_refs": [
+        "B4.02",
+        "B4.03"
+      ],
+      "period": "FY2024-25",
+      "description": "Two goods invoices above Rs.50,000 have no e-way bill: VPI/KA/24-25/0034, VPI/TN/24-25/0003",
+      "expected_detection": "Three-way match invoice vs EWB vs GSTR-1; movement without EWB attracts Section 129."
+    },
+    {
+      "anomaly_id": "MOCK-17",
+      "code": "B5.03-IMPG-GAP",
+      "doc_refs": [
+        "B5.03",
+        "B1.03",
+        "B1.05"
+      ],
+      "period": "FY2024-25",
+      "description": "Bill of Entry 3484962 carries IGST paid at customs but is not reflected in GSTR-2B (Table IMPG).",
+      "expected_detection": "Import IGST credit reconciliation: ICEGATE vs GSTR-2B IMPG vs 3B Table 4A(1)."
+    },
+    {
+      "anomaly_id": "MOCK-18",
+      "code": "B6.02-IEC-LINK",
+      "doc_refs": [
+        "B6.02",
+        "A5.02",
+        "B5.01"
+      ],
+      "period": "FY2024-25",
+      "description": "IEC branch 03 (Chennai) has no GSTIN mapped in the DGFT registry.",
+      "expected_detection": "IEC-GSTIN linkage validation; mismatch blocks refund processing and SB-GSTR1 matching."
+    },
+    {
+      "anomaly_id": "MOCK-19",
+      "code": "B6.03-EO-DEFAULT",
+      "doc_refs": [
+        "B6.03",
+        "A5.12",
+        "A5.13"
+      ],
+      "period": "FY2024-25",
+      "description": "Advance Authorisation 0710098765 export obligation period expired 08-02-2024 with a 25% shortfall.",
+      "expected_detection": "Defaulted EO retroactively affects deemed export / duty-free entitlement claims (Notification 48/2017); customs duty + IGST + interest exposure."
+    }
+  ]
+}

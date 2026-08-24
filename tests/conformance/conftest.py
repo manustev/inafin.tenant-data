@@ -11,6 +11,7 @@ fixtures use.
 from __future__ import annotations
 
 from collections.abc import Iterator
+from dataclasses import dataclass, field
 
 import pytest
 import pytest_asyncio
@@ -25,6 +26,7 @@ from src.api.routes_ingest import router as ingest_router
 from src.bronze.service import BronzeIngestionService
 from src.core.config import Settings
 from src.core.pool import TenantScopedPool
+from src.events.publisher import BatchManifest
 from src.extraction.reader import FallbackPdfTextReader, PypdfReader
 from src.provisioning.objectstore import S3ObjectStore
 from src.reader.entitlement_reader import EntitlementReader
@@ -32,6 +34,22 @@ from src.reader.silver_reader import SilverReader
 
 TOKEN_ACME = "test-acme-token"  # noqa: S105 -- test fixture, not a secret
 TOKEN_GLOBEX = "test-globex-token"  # noqa: S105 -- test fixture, not a secret
+
+
+@dataclass
+class RecordingPublisher:
+    """A `BatchPublisherPort` fake that records every manifest it was asked
+    to publish, instead of standing up a broker — the same
+    "swap providers for tests" idiom `NullScanner`/fakes elsewhere in this
+    suite already use. `published` is what
+    `test_trigger_dispatches_*` asserts against to prove `dispatch_load`
+    actually rang the doorbell, not just that the HTTP call succeeded."""
+
+    published: list[BatchManifest] = field(default_factory=list)
+
+    async def publish(self, manifest: BatchManifest) -> bool:
+        self.published.append(manifest)
+        return True
 
 
 @pytest.fixture(scope="session")
@@ -49,9 +67,15 @@ def api_object_store(settings: Settings) -> S3ObjectStore:
     return store
 
 
+@pytest.fixture
+def batch_publisher() -> RecordingPublisher:
+    return RecordingPublisher()
+
+
 @pytest_asyncio.fixture
 async def api_app(
-    app_pool: TenantScopedPool, api_object_store: S3ObjectStore, settings: Settings
+    app_pool: TenantScopedPool, api_object_store: S3ObjectStore, settings: Settings,
+    batch_publisher: RecordingPublisher,
 ) -> FastAPI:
     app = FastAPI()
     app.state.pool = app_pool
@@ -65,6 +89,7 @@ async def api_app(
     )
     app.state.silver_reader = SilverReader(app_pool)
     app.state.entitlement_reader = EntitlementReader(app_pool)
+    app.state.batch_publisher = batch_publisher
     app.include_router(ingest_router)
     app.include_router(
         GraphQLRouter(schema, context_getter=context_getter), prefix="/graphql"

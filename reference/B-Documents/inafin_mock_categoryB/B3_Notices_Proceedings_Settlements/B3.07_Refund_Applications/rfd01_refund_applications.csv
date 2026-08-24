@@ -1,0 +1,5 @@
+arn,form,gstin,refund_type,period,amount_claimed,date_of_filing,acknowledgement_rfd02,deficiency_memo_rfd03,provisional_sanction_rfd04,final_order_rfd06,amount_rejected,status,days_pending
+AA290425000001R,RFD-01,29AABCV1234K1Z9,Refund of unutilised ITC - export of goods under LUT (Rule 89(4)),042024-062024,8420000.0,18-07-2024,Issued,,7578000.0,8167400.0,252600.0,Sanctioned,0
+AA290425000002R,RFD-01,29AABCV1234K1Z9,Refund of unutilised ITC - export of goods under LUT (Rule 89(4)),072024-092024,7135000.0,22-10-2024,Issued,,6421500.0,6920950.0,214050.0,Sanctioned,0
+AA290425000003R,RFD-01,29AABCV1234K1Z9,Refund of unutilised ITC - export of goods under LUT (Rule 89(4)),102024-122024,9210000.0,19-01-2025,Issued,Issued 06-02-2025 - shipping bill / GSTR-1 Table 6A value mismatch,0.0,0.0,0.0,Deficiency memo issued,74
+AA290425000004R,RFD-01,29AABCV1234K1Z9,Refund of unutilised ITC - export of goods under LUT (Rule 89(4)),012025-032025,6890000.0,24-04-2025,Pending,,0.0,0.0,0.0,Filed - under processing,74

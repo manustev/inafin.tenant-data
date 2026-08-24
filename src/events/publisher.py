@@ -20,6 +20,7 @@ from __future__ import annotations
 import json
 import logging
 from types import TracebackType
+from typing import Protocol
 
 from aiokafka import AIOKafkaProducer
 
@@ -27,6 +28,15 @@ from src.core.identifiers import kafka_key
 from src.silver.promote import BatchManifest
 
 logger = logging.getLogger(__name__)
+
+
+class BatchPublisherPort(Protocol):
+    """Same Protocol-not-library-import shape `VirusScanPort`/
+    `ObjectStorePort` already use — `src/dispatch/router.py` depends on this,
+    not on `BatchPublisher` or `aiokafka` directly, so a conformance test can
+    hand it a fake that records calls instead of standing up a broker."""
+
+    async def publish(self, manifest: BatchManifest) -> bool: ...
 
 
 class BatchPublisher:

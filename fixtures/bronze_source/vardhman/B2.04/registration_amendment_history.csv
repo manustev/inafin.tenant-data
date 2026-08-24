@@ -1,0 +1,4 @@
+gstin,amendment_type,field,old_value,new_value,application_ref,arn,date_of_application,date_of_approval,effective_date
+29AABCV1234K1Z9,Core - Additional place of business,Additional place of business,,"Warehouse 3, Nelamangala Road, Bengaluru 562123",REG-14,AA290724091234K,09-07-2024,19-07-2024,09-07-2024
+29AABCV1234K1Z9,Non-core - Authorised signatory,Authorised signatory,P. NARAYANAN,SUNITHA RAO,REG-14,AA291124077781B,14-11-2024,14-11-2024,14-11-2024
+33AABCV1234K1ZK,New registration,Registration,,Regular,REG-01,AA330824055512C,02-08-2024,12-08-2024,12-08-2024

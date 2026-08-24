@@ -1,0 +1,35 @@
+{
+  "iec": "0788012345",
+  "iec_issue_date": "14-03-2011",
+  "entity_name": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+  "pan": "AABCV1234K",
+  "status": "Active",
+  "last_updated": "28-06-2024",
+  "registered_address": "Plot 44, Phase II, Peenya Industrial Area, Bengaluru 560058",
+  "rcmc": [
+    {
+      "council": "EEPC India",
+      "rcmc_no": "EEPC/RCMC/2023/11842",
+      "valid_from": "01-04-2023",
+      "valid_upto": "31-03-2028"
+    }
+  ],
+  "branches": [
+    {
+      "branch_code": "01",
+      "address": "Plot 44, Phase II, Peenya, Bengaluru",
+      "linked_gstin": "29AABCV1234K1Z9"
+    },
+    {
+      "branch_code": "02",
+      "address": "Unit 7, Rabale MIDC, Navi Mumbai",
+      "linked_gstin": "27AABCV1234K1ZD"
+    },
+    {
+      "branch_code": "03",
+      "address": "No 21, Ambattur Industrial Estate, Chennai",
+      "linked_gstin": ""
+    }
+  ],
+  "mock_note": "Branch 03 (Chennai) is NOT linked to the Tamil Nadu GSTIN in the IEC registry - IEC-GSTIN linkage failure blocks ICEGATE-GSTN data flow for exports from that unit."
+}

@@ -1,0 +1,456 @@
+{
+  "data": {
+    "gstin": "29AABCV1234K1Z9",
+    "rtnprd": "052024",
+    "version": "2.0",
+    "gendt": "14-06-2024",
+    "docdata": {
+      "b2b": [
+        {
+          "ctin": "29AAACB1199C1ZV",
+          "trdnm": "BHARAT SPECIAL STEELS LIMITED",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "BHA/24-25/7015",
+              "typ": "R",
+              "idt": "07-05-2024",
+              "val": 103107.28,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 92060.07,
+                  "igst": 0.0,
+                  "cgst": 5523.61,
+                  "sgst": 5523.6,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "BHA/24-25/7847",
+              "typ": "R",
+              "idt": "18-05-2024",
+              "val": 2322605.15,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1968309.45,
+                  "igst": 0.0,
+                  "cgst": 177147.85,
+                  "sgst": 177147.85,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "27AADCI7733E1ZL",
+          "trdnm": "INDUS FORGINGS AND ALLOYS PRIVATE LIMITED",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "IND/24-25/5062",
+              "typ": "R",
+              "idt": "31-05-2024",
+              "val": 29607.34,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 25090.97,
+                  "igst": 4516.37,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "IND/24-25/4961",
+              "typ": "R",
+              "idt": "05-05-2024",
+              "val": 1465630.68,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1242059.9,
+                  "igst": 223570.78,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "IND/24-25/9865",
+              "typ": "R",
+              "idt": "19-05-2024",
+              "val": 7374.63,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 6584.49,
+                  "igst": 790.14,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "IND/24-25/5864",
+              "typ": "R",
+              "idt": "20-05-2024",
+              "val": 577850.43,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 515937.88,
+                  "igst": 61912.55,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "IND/24-25/2318",
+              "typ": "R",
+              "idt": "25-05-2024",
+              "val": 1451339.78,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1229948.97,
+                  "igst": 221390.81,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "27AABCO3399Z1Z4",
+          "trdnm": "ORION METALS PRIVATE LIMITED",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "ORI/24-25/7244",
+              "typ": "R",
+              "idt": "14-05-2024",
+              "val": 23806.19,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 21255.53,
+                  "igst": 2550.66,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AAACV6688Y1ZQ",
+          "trdnm": "VISHWA ENTERPRISES PRIVATE LIMITED",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "VIS/24-25/7784",
+              "typ": "R",
+              "idt": "01-05-2024",
+              "val": 231311.57,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 12,
+                  "txval": 206528.19,
+                  "igst": 0.0,
+                  "cgst": 12391.69,
+                  "sgst": 12391.69,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "VIS/24-25/8342",
+              "typ": "R",
+              "idt": "27-05-2024",
+              "val": 2087334.85,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1768927.84,
+                  "igst": 0.0,
+                  "cgst": 159203.51,
+                  "sgst": 159203.5,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "33AAHFS3355G1ZA",
+          "trdnm": "SUNRISE TOOLING SOLUTIONS",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "SUN/24-25/7971",
+              "typ": "R",
+              "idt": "05-05-2024",
+              "val": 1441909.13,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 1221956.89,
+                  "igst": 219952.24,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            },
+            {
+              "inum": "SUN/24-25/7420",
+              "typ": "R",
+              "idt": "06-05-2024",
+              "val": 84390.98,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 71517.78,
+                  "igst": 12873.2,
+                  "cgst": 0.0,
+                  "sgst": 0.0,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AABCA2244T1Z8",
+          "trdnm": "APEX INDUSTRIAL SERVICES PRIVATE LIMITED",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "APE/24-25/5351",
+              "typ": "R",
+              "idt": "04-05-2024",
+              "val": 48457.51,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 41065.69,
+                  "igst": 0.0,
+                  "cgst": 3695.91,
+                  "sgst": 3695.91,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        },
+        {
+          "ctin": "29AAGFN7799P1ZY",
+          "trdnm": "NIRMAL PACKAGING INDUSTRIES",
+          "supprd": "052024",
+          "supfileddt": "11-06-2024",
+          "supfilingmode": "ONLINE",
+          "inv": [
+            {
+              "inum": "NIR/24-25/2603",
+              "typ": "R",
+              "idt": "10-05-2024",
+              "val": 21090.78,
+              "pos": "29",
+              "rev": "N",
+              "itcavl": "Y",
+              "rsn": "",
+              "diffprcnt": 1,
+              "irn": "",
+              "irngendate": "",
+              "items": [
+                {
+                  "num": 1,
+                  "rt": 18,
+                  "txval": 17873.54,
+                  "igst": 0.0,
+                  "cgst": 1608.62,
+                  "sgst": 1608.62,
+                  "cess": 0
+                }
+              ]
+            }
+          ]
+        }
+      ],
+      "cdnr": [],
+      "impg": [],
+      "isd": [
+        {
+          "ctin": "29AABCV1234K2Z8",
+          "trdnm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+          "doctype": "ISD",
+          "docnum": "ISD/24-25/052024",
+          "docdt": "31-05-2024",
+          "igst": 0.0,
+          "cgst": 54000.0,
+          "sgst": 54000.0,
+          "cess": 0.0
+        }
+      ]
+    },
+    "itcsumm": {
+      "itcavl": {
+        "b2b": {
+          "igst": 747556.75,
+          "cgst": 359571.19,
+          "sgst": 359571.17,
+          "cess": 0
+        },
+        "impg": {
+          "igst": 0.0,
+          "cgst": 0,
+          "sgst": 0,
+          "cess": 0
+        },
+        "isd": {
+          "igst": 0.0,
+          "cgst": 54000.0,
+          "sgst": 54000.0,
+          "cess": 0
+        }
+      },
+      "itcnotavl": {
+        "b2b": {
+          "igst": 0.0,
+          "cgst": 0.0,
+          "sgst": 0.0,
+          "cess": 0
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "gstin": "29AABCV1234K1Z9",
+  "fy": "2024-25",
+  "form": "GSTR9C",
+  "filing_status": "Filed",
+  "filing_date": "18-12-2025",
+  "table5_reconciliation_of_turnover": {
+    "A_turnover_as_per_audited_financials": 170446236.82,
+    "B_unbilled_revenue_at_beginning": 3150000.0,
+    "C_unadjusted_advances_at_end": 1890000.0,
+    "D_deemed_supply_schedule_I": 1260000.0,
+    "E_credit_notes_after_march_31": 0.0,
+    "F_trade_discounts_not_permissible": 0.0,
+    "G_turnover_from_april_to_june_2017": 0.0,
+    "H_unbilled_revenue_at_end": 4670000.0,
+    "I_unadjusted_advances_at_beginning": 1440000.0,
+    "J_credit_notes_accounted_but_not_permissible": 0.0,
+    "K_adjustments_on_forex_fluctuation": 318500.0,
+    "L_other_adjustments": 0.0,
+    "O_other_adjustments_to_reconcile": 0.0,
+    "P_annual_turnover_after_adjustments": 166134736.82,
+    "Q_turnover_as_declared_in_annual_return": 165366236.82,
+    "R_un_reconciled_turnover": 768500.0
+  },
+  "table6_reasons_for_un_reconciled_turnover": [
+    {
+      "reason": "Forex revaluation on export invoices booked at bank rate vs CBEC notified rate",
+      "amount": 318500.0
+    },
+    {
+      "reason": "Cross-charge / Schedule I inter-GSTIN supplies recorded in books but not declared in GSTR-1 (to be traced by the platform)",
+      "amount": 450000.0
+    }
+  ],
+  "table12_reconciliation_of_itc": {
+    "A_itc_availed_as_per_audited_financials": null,
+    "B_itc_booked_in_earlier_fy_claimed_in_current": 412000.0,
+    "C_itc_booked_in_current_fy_to_be_claimed_next": 968000.0,
+    "E_itc_claimed_in_annual_return": null
+  },
+  "auditor": {
+    "name": "S. RANGANATHAN & ASSOCIATES, Chartered Accountants",
+    "membership_no": "218764",
+    "firm_regn_no": "004512S",
+    "udin": "25218764BKXQRS1234"
+  },
+  "mock_note": "R (un-reconciled turnover) and Table 12 A/E are deliberately left null - the platform is expected to compute the bridge independently and compare."
+}

@@ -90,10 +90,19 @@ logger = logging.getLogger(__name__)
 class SilverWriteResult:
     """What one extraction+write attempt produced, for the caller to log or
     assert on. Not a Silver row itself — `record_id` names one when
-    `written` is True."""
+    `written` is True.
+
+    `batch_id` names the `ingest_batch` row `create_single_document_batch`
+    wrote alongside it — every archetype's `to_silver()` creates one, even
+    though `record_id` (the archetype table's own row) is a different id.
+    `src/dispatch/router.py` reads this to publish a `BatchManifest` the
+    same way it does for the other three dispatch mechanisms; a `to_silver`
+    that returns `written=True` without a `batch_id` would be a manifest
+    Pipeline 2 can never learn about."""
 
     written: bool
     record_id: uuid.UUID | None = None
+    batch_id: uuid.UUID | None = None
     reason: str | None = None
 
 
@@ -315,7 +324,7 @@ class EntitlementExtractor(DocumentExtractor):
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
         )
-        return SilverWriteResult(written=True, record_id=instrument_id)
+        return SilverWriteResult(written=True, record_id=instrument_id, batch_id=batch_id)
 
     async def _quarantine(
         self,
@@ -419,7 +428,7 @@ class ProceedingEventExtractor(DocumentExtractor):
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
         )
-        return SilverWriteResult(written=True, record_id=event_id)
+        return SilverWriteResult(written=True, record_id=event_id, batch_id=batch_id)
 
     async def _quarantine(
         self, ctx: TenantContext, ingest_id: uuid.UUID, entity_id: uuid.UUID,
@@ -507,7 +516,7 @@ class EntityMasterExtractor(DocumentExtractor):
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
         )
-        return SilverWriteResult(written=True, record_id=record_id)
+        return SilverWriteResult(written=True, record_id=record_id, batch_id=batch_id)
 
     async def _quarantine(
         self, ctx: TenantContext, ingest_id: uuid.UUID, entity_id: uuid.UUID,
@@ -596,7 +605,7 @@ class FinancialStatementExtractor(DocumentExtractor):
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
         )
-        return SilverWriteResult(written=True, record_id=extract_id)
+        return SilverWriteResult(written=True, record_id=extract_id, batch_id=batch_id)
 
     async def _quarantine(
         self, ctx: TenantContext, ingest_id: uuid.UUID, entity_id: uuid.UUID,
@@ -702,7 +711,7 @@ class NarrativeContractExtractor(DocumentExtractor):
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
         )
-        return SilverWriteResult(written=True, record_id=contract_id)
+        return SilverWriteResult(written=True, record_id=contract_id, batch_id=batch_id)
 
     async def _quarantine(
         self, ctx: TenantContext, ingest_id: uuid.UUID, entity_id: uuid.UUID,
@@ -802,7 +811,9 @@ class TransactionDocumentExtractor(DocumentExtractor):
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
         )
-        return SilverWriteResult(written=True, record_id=manifest.batch_id)
+        return SilverWriteResult(
+            written=True, record_id=manifest.batch_id, batch_id=manifest.batch_id,
+        )
 
     async def _quarantine(
         self, ctx: TenantContext, ingest_id: uuid.UUID, entity_id: uuid.UUID,
@@ -902,7 +913,7 @@ class RegisterDocumentExtractor(DocumentExtractor):
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
         )
         return SilverWriteResult(
-            written=True, record_id=result.batch_id,
+            written=True, record_id=result.batch_id, batch_id=result.batch_id,
             reason=f"inserted={result.inserted} unchanged={result.unchanged}"
                    f" superseded={result.superseded} rejected={result.rejected}",
         )

@@ -1,0 +1,179 @@
+[
+  {
+    "gstin": "29AABCV1234K1Z9",
+    "legal_name": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+    "trade_name": "Vardhman Precision",
+    "pan": "AABCV1234K",
+    "constitution": "Private Limited Company",
+    "registration_type": "Regular",
+    "state_code": "29",
+    "state": "Karnataka",
+    "date_of_liability": "01-07-2017",
+    "effective_date_of_registration": "01-07-2017",
+    "certificate_no": "REG-06/29/AABCV1234K/1",
+    "principal_place_of_business": "Plot 44, Phase II, Peenya Industrial Area, Bengaluru, Karnataka, 560058",
+    "additional_places": [
+      {
+        "address": "Warehouse 3, Nelamangala Road, Bengaluru 562123",
+        "nature": "Warehouse / Depot"
+      }
+    ],
+    "nature_of_business": [
+      "Manufacturing",
+      "Wholesale Business",
+      "Export"
+    ],
+    "authorised_signatories": [
+      {
+        "name": "RAJEEV MENON",
+        "designation": "Director",
+        "pan": "AFVPM7788L",
+        "status": "Active"
+      },
+      {
+        "name": "SUNITHA RAO",
+        "designation": "Company Secretary",
+        "pan": "BKQPR2211H",
+        "status": "Active"
+      }
+    ],
+    "jurisdiction_centre": "Bengaluru North Commissionerate, Division IV, Range AD",
+    "jurisdiction_state": "Karnataka - LGSTO 070",
+    "status": "Active",
+    "cancellation_date": null,
+    "aggregate_turnover_preceding_fy": 1284000000.0,
+    "composition_opted": "No",
+    "ewb_enabled": "Yes",
+    "einvoice_applicable": "Yes",
+    "einvoice_applicable_from": "01-08-2023"
+  },
+  {
+    "gstin": "27AABCV1234K1ZD",
+    "legal_name": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+    "trade_name": "Vardhman Precision",
+    "pan": "AABCV1234K",
+    "constitution": "Private Limited Company",
+    "registration_type": "Regular",
+    "state_code": "27",
+    "state": "Maharashtra",
+    "date_of_liability": "01-07-2017",
+    "effective_date_of_registration": "01-07-2017",
+    "certificate_no": "REG-06/27/AABCV1234K/1",
+    "principal_place_of_business": "Unit 7, Rabale MIDC, Navi Mumbai, Maharashtra, 400701",
+    "additional_places": [],
+    "nature_of_business": [
+      "Manufacturing",
+      "Wholesale Business",
+      "Export"
+    ],
+    "authorised_signatories": [
+      {
+        "name": "RAJEEV MENON",
+        "designation": "Director",
+        "pan": "AFVPM7788L",
+        "status": "Active"
+      },
+      {
+        "name": "SUNITHA RAO",
+        "designation": "Company Secretary",
+        "pan": "BKQPR2211H",
+        "status": "Active"
+      }
+    ],
+    "jurisdiction_centre": "Navi Mumbai Commissionerate, Division II, Range IV",
+    "jurisdiction_state": "Maharashtra - Ward 402",
+    "status": "Active",
+    "cancellation_date": null,
+    "aggregate_turnover_preceding_fy": 1284000000.0,
+    "composition_opted": "No",
+    "ewb_enabled": "Yes",
+    "einvoice_applicable": "Yes",
+    "einvoice_applicable_from": "01-08-2023"
+  },
+  {
+    "gstin": "33AABCV1234K1ZK",
+    "legal_name": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+    "trade_name": "Vardhman Precision",
+    "pan": "AABCV1234K",
+    "constitution": "Private Limited Company",
+    "registration_type": "Regular",
+    "state_code": "33",
+    "state": "Tamil Nadu",
+    "date_of_liability": "12-08-2024",
+    "effective_date_of_registration": "12-08-2024",
+    "certificate_no": "REG-06/33/AABCV1234K/1",
+    "principal_place_of_business": "No 21, Ambattur Industrial Estate, Chennai, Tamil Nadu, 600058",
+    "additional_places": [],
+    "nature_of_business": [
+      "Manufacturing",
+      "Wholesale Business",
+      "Export"
+    ],
+    "authorised_signatories": [
+      {
+        "name": "RAJEEV MENON",
+        "designation": "Director",
+        "pan": "AFVPM7788L",
+        "status": "Active"
+      },
+      {
+        "name": "SUNITHA RAO",
+        "designation": "Company Secretary",
+        "pan": "BKQPR2211H",
+        "status": "Active"
+      }
+    ],
+    "jurisdiction_centre": "Navi Mumbai Commissionerate, Division II, Range IV",
+    "jurisdiction_state": "Tamil Nadu - Ward 402",
+    "status": "Active",
+    "cancellation_date": null,
+    "aggregate_turnover_preceding_fy": 1284000000.0,
+    "composition_opted": "No",
+    "ewb_enabled": "Yes",
+    "einvoice_applicable": "Yes",
+    "einvoice_applicable_from": "01-08-2023"
+  },
+  {
+    "gstin": "29AABCV1234K2Z8",
+    "legal_name": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+    "trade_name": "Vardhman Precision",
+    "pan": "AABCV1234K",
+    "constitution": "Private Limited Company",
+    "registration_type": "Input Service Distributor",
+    "state_code": "29",
+    "state": "Karnataka",
+    "date_of_liability": "01-10-2023",
+    "effective_date_of_registration": "01-10-2023",
+    "certificate_no": "REG-06/29/AABCV1234K/2",
+    "principal_place_of_business": "Plot 44, Phase II, Peenya Industrial Area, Bengaluru, Karnataka, 560058",
+    "additional_places": [],
+    "nature_of_business": [
+      "Manufacturing",
+      "Wholesale Business",
+      "Export"
+    ],
+    "authorised_signatories": [
+      {
+        "name": "RAJEEV MENON",
+        "designation": "Director",
+        "pan": "AFVPM7788L",
+        "status": "Active"
+      },
+      {
+        "name": "SUNITHA RAO",
+        "designation": "Company Secretary",
+        "pan": "BKQPR2211H",
+        "status": "Active"
+      }
+    ],
+    "jurisdiction_centre": "Bengaluru North Commissionerate, Division IV, Range AD",
+    "jurisdiction_state": "Karnataka - LGSTO 070",
+    "status": "Active",
+    "cancellation_date": null,
+    "aggregate_turnover_preceding_fy": 1284000000.0,
+    "composition_opted": "No",
+    "ewb_enabled": "Yes",
+    "einvoice_applicable": "Yes",
+    "einvoice_applicable_from": "01-08-2023"
+  }
+]

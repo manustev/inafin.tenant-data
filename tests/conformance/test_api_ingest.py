@@ -18,7 +18,7 @@ import uuid
 
 import pytest
 from fastapi.testclient import TestClient
-from tests.conformance.conftest import TOKEN_ACME
+from tests.conformance.conftest import TOKEN_ACME, RecordingPublisher
 from tests.conftest import SeededTenant
 
 pytestmark = pytest.mark.conformance
@@ -101,10 +101,13 @@ def test_status_of_an_already_accepted_seed_artefact(
 
 
 def test_trigger_dispatches_a_flat_register(
-    api_client: TestClient, tenant_a: SeededTenant
+    api_client: TestClient, tenant_a: SeededTenant, batch_publisher: RecordingPublisher,
 ) -> None:
     """REGISTER_LOADER mechanism, end to end through HTTP: upload, trigger
-    with the period/gstin a flat register needs, and see a real batch land.
+    with the period/gstin a flat register needs, and see a real batch land —
+    and see Pipeline 2's doorbell actually ring for it
+    (`src/dispatch/router.py::_publish_if_ready`), the manifest-publish gap
+    closed this session.
 
     A FRESH entity, not `tenant_a.entity_id` — that fixture is shared,
     session-scoped, and reused by unrelated tests; writing a real
@@ -145,9 +148,15 @@ def test_trigger_dispatches_a_flat_register(
     status = api_client.get(f"/artefacts/{ingest_id}/status", headers=AUTH)
     assert status.json()["status"] == "ACCEPTED"
 
+    assert len(batch_publisher.published) == 1
+    manifest = batch_publisher.published[0]
+    assert str(manifest.batch_id) == body["batch_id"]
+    assert manifest.document_type == "TRIAL_BALANCE"
+    assert manifest.entity_id == entity_id
+
 
 def test_trigger_dispatches_sales_register(
-    api_client: TestClient, tenant_a: SeededTenant
+    api_client: TestClient, tenant_a: SeededTenant, batch_publisher: RecordingPublisher,
 ) -> None:
     """SALES_REGISTER mechanism — the one hand-written loader, not a
     RegisterSpec entry. A fresh entity, same reason as the register test above."""
@@ -181,9 +190,12 @@ def test_trigger_dispatches_sales_register(
     assert body["status"] == "ACCEPTED"
     assert body["batch_id"] is not None
 
+    assert len(batch_publisher.published) == 1
+    assert str(batch_publisher.published[0].batch_id) == body["batch_id"]
+
 
 def test_trigger_dispatches_archetype1_promote(
-    api_client: TestClient, tenant_a: SeededTenant
+    api_client: TestClient, tenant_a: SeededTenant, batch_publisher: RecordingPublisher,
 ) -> None:
     """ARCHETYPE1_PROMOTE mechanism — an archetype-1 type with no
     RegisterSpec entry, so it must fall through to
@@ -222,9 +234,12 @@ def test_trigger_dispatches_archetype1_promote(
     assert body["status"] == "ACCEPTED"
     assert body["batch_id"] is not None
 
+    assert len(batch_publisher.published) == 1
+    assert str(batch_publisher.published[0].batch_id) == body["batch_id"]
+
 
 def test_trigger_dispatches_pdf_extraction(
-    api_client: TestClient, tenant_a: SeededTenant
+    api_client: TestClient, tenant_a: SeededTenant, batch_publisher: RecordingPublisher,
 ) -> None:
     """PDF_EXTRACTION mechanism — a real specimen PDF, the same one
     `test_extraction_entitlement.py` extracts directly. No period/gstin
@@ -255,6 +270,13 @@ def test_trigger_dispatches_pdf_extraction(
     body = trigger.json()
     assert body["mechanism"] == "PDF_EXTRACTION"
     assert body["status"] == "ACCEPTED"
+    # PDF_EXTRACTION's own ingest_batch row (create_single_document_batch)
+    # is now surfaced through DispatchOutcome.batch_id — previously always
+    # None, which is why this mechanism's manifest never used to publish.
+    assert body["batch_id"] is not None
+
+    assert len(batch_publisher.published) == 1
+    assert str(batch_publisher.published[0].batch_id) == body["batch_id"]
 
 
 def test_trigger_reports_unrouted_for_a_type_with_no_dispatch_mechanism(

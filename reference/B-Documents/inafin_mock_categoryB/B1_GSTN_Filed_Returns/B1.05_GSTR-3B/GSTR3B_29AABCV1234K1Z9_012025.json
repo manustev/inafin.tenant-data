@@ -1,0 +1,142 @@
+{
+  "gstin": "29AABCV1234K1Z9",
+  "ret_period": "012025",
+  "form": "GSTR3B",
+  "sup_details": {
+    "osup_det": {
+      "txval": 9337213.42,
+      "iamt": 640929.25,
+      "camt": 496277.05,
+      "samt": 496276.99,
+      "csamt": 0.0
+    },
+    "osup_zero": {
+      "txval": 2388720.2,
+      "iamt": 0.0,
+      "csamt": 0.0
+    },
+    "osup_nil_exmp": {
+      "txval": 0.0
+    },
+    "isup_rev": {
+      "txval": 46864.0,
+      "iamt": 0.0,
+      "camt": 1171.6,
+      "samt": 1171.6,
+      "csamt": 0.0
+    },
+    "osup_nongst": {
+      "txval": 0.0
+    }
+  },
+  "inter_sup": {
+    "unreg_details": [],
+    "comp_details": [],
+    "uin_details": []
+  },
+  "itc_elg": {
+    "itc_avl": [
+      {
+        "ty": "IMPG",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "IMPS",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "ISRC",
+        "iamt": 0.0,
+        "camt": 1171.6,
+        "samt": 1171.6,
+        "csamt": 0.0
+      },
+      {
+        "ty": "ISD",
+        "iamt": 0.0,
+        "camt": 54000.0,
+        "samt": 54000.0,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 344377.52,
+        "camt": 422938.66,
+        "samt": 422938.61,
+        "csamt": 0.0
+      }
+    ],
+    "itc_rev": [
+      {
+        "ty": "RUL",
+        "iamt": 14164.03,
+        "camt": 13747.44,
+        "samt": 13747.44,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      }
+    ],
+    "itc_net": {
+      "iamt": 330213.49,
+      "camt": 464362.82,
+      "samt": 464362.77,
+      "csamt": 0.0
+    },
+    "itc_inelg": [
+      {
+        "ty": "RUL",
+        "iamt": 0.0,
+        "camt": 29578.98,
+        "samt": 29578.98,
+        "csamt": 0.0
+      },
+      {
+        "ty": "OTH",
+        "iamt": 0.0,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0.0
+      }
+    ]
+  },
+  "inward_sup": {
+    "isup_details": [
+      {
+        "ty": "GST",
+        "inter": 0.0,
+        "intra": 0.0
+      },
+      {
+        "ty": "NONGST",
+        "inter": 0.0,
+        "intra": 0.0
+      }
+    ]
+  },
+  "intr_ltfee": {
+    "intr_details": {
+      "iamt": 0.0,
+      "camt": 0.0,
+      "samt": 0.0,
+      "csamt": 0.0
+    }
+  },
+  "filing_status": "Filed",
+  "notes_for_mock": [
+    "ITC availed EXCESS of GSTR-2B (Sec 16(2)(aa) breach)"
+  ],
+  "arn": "AA2902256263809L",
+  "filing_date": "20-02-2025"
+}

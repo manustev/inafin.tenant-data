@@ -1,0 +1,208 @@
+{
+  "gstin": "33AABCV1234K1ZK",
+  "fp": "022025",
+  "gt": null,
+  "cur_gt": null,
+  "filing_status": "Filed",
+  "arn": "AA3303254015985Y",
+  "filing_date": "11-03-2025",
+  "b2b": [
+    {
+      "ctin": "29AACCS7712F1ZB",
+      "inv": [
+        {
+          "inum": "VPI/TN/24-25/0016",
+          "idt": "16-02-2025",
+          "val": 734084.34,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 622105.37,
+                "iamt": 111978.97,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "36AABCD4455L1ZH",
+      "inv": [
+        {
+          "inum": "VPI/TN/24-25/0017",
+          "idt": "01-02-2025",
+          "val": 126361.1,
+          "pos": "36",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 107085.68,
+                "iamt": 19275.42,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AAGFK9012M1ZX",
+      "inv": [
+        {
+          "inum": "VPI/TN/24-25/0018",
+          "idt": "15-02-2025",
+          "val": 12873.17,
+          "pos": "29",
+          "rchrg": "N",
+          "inv_typ": "R",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 12,
+                "txval": 11493.9,
+                "iamt": 1379.27,
+                "camt": 0.0,
+                "samt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "b2cl": [],
+  "b2cs": [
+    {
+      "sply_ty": "INTRA",
+      "typ": "OE",
+      "pos": "33",
+      "rt": 18,
+      "txval": 139352.13,
+      "iamt": 0.0,
+      "camt": 12541.69,
+      "samt": 12541.69,
+      "csamt": 0
+    },
+    {
+      "sply_ty": "INTRA",
+      "typ": "OE",
+      "pos": "33",
+      "rt": 12,
+      "txval": 226789.32,
+      "iamt": 0.0,
+      "camt": 13607.36,
+      "samt": 13607.36,
+      "csamt": 0
+    }
+  ],
+  "cdnr": [],
+  "exp": [],
+  "at": [],
+  "nil": {
+    "inv": [
+      {
+        "sply_ty": "INTRB2B",
+        "expt_amt": 0,
+        "nil_amt": 0,
+        "ngsup_amt": 0
+      }
+    ]
+  },
+  "hsn": {
+    "data": [
+      {
+        "num": 1,
+        "hsn_sc": "40169390",
+        "uqc": "NOS",
+        "qty": 82,
+        "rt": 12,
+        "txval": 11493.9,
+        "iamt": 1379.27,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      },
+      {
+        "num": 2,
+        "hsn_sc": "72085190",
+        "uqc": "MTS",
+        "qty": 11,
+        "rt": 18,
+        "txval": 622105.37,
+        "iamt": 111978.97,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      },
+      {
+        "num": 3,
+        "hsn_sc": "84819090",
+        "uqc": "NOS",
+        "qty": 1,
+        "rt": 12,
+        "txval": 226789.32,
+        "iamt": 0.0,
+        "camt": 13607.36,
+        "samt": 13607.36,
+        "csamt": 0
+      },
+      {
+        "num": 4,
+        "hsn_sc": "84819090",
+        "uqc": "NOS",
+        "qty": 1,
+        "rt": 18,
+        "txval": 139352.13,
+        "iamt": 0.0,
+        "camt": 12541.69,
+        "samt": 12541.69,
+        "csamt": 0
+      },
+      {
+        "num": 5,
+        "hsn_sc": "998719",
+        "uqc": "OTH",
+        "qty": 1,
+        "rt": 18,
+        "txval": 107085.68,
+        "iamt": 19275.42,
+        "camt": 0.0,
+        "samt": 0.0,
+        "csamt": 0
+      }
+    ]
+  },
+  "doc_issue": {
+    "doc_det": [
+      {
+        "doc_num": 1,
+        "docs": [
+          {
+            "num": 1,
+            "from_num": "VPI/TN/24-25/0016",
+            "to_num": "VPI/TN/24-25/0018",
+            "totnum": 3,
+            "cancel": 0,
+            "net_issue": 3
+          }
+        ]
+      }
+    ]
+  }
+}

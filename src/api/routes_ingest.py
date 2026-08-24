@@ -17,6 +17,7 @@ from fastapi import APIRouter, Form, HTTPException, UploadFile
 from psycopg import sql
 
 from src.api.deps import (
+    BatchPublisherDep,
     BronzeServiceDep,
     PdfTextReaderDep,
     PoolDep,
@@ -79,6 +80,7 @@ async def upload_artefact(
 async def trigger_load(
     ingest_id: uuid.UUID, body: TriggerRequest, tenant: TenantDep, pool: PoolDep,
     bronze: BronzeServiceDep, store: StoreDep, pdf_text_reader: PdfTextReaderDep,
+    batch_publisher: BatchPublisherDep,
 ) -> TriggerResponse:
     """Record the trigger, then dispatch it synchronously, in-process.
 
@@ -134,7 +136,7 @@ async def trigger_load(
             ingest_id=ingest_id, entity_id=entry.entity_id, doc_type_code=doc_type_code,
             data=data, content_format=content_format,
             period_start=body.period_start, period_end=body.period_end, gstin=body.gstin,
-            store=store, reader=pdf_text_reader,
+            store=store, reader=pdf_text_reader, publisher=batch_publisher,
         )
     except NoDispatchMechanismError:
         # A real, honest outcome, not an error: this doc_type_code has no

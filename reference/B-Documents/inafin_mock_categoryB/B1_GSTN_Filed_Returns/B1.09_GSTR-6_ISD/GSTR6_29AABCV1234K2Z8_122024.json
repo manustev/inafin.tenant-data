@@ -1,0 +1,91 @@
+{
+  "gstin": "29AABCV1234K2Z8",
+  "ret_period": "122024",
+  "form": "GSTR6",
+  "filing_status": "Filed",
+  "arn": "AA2901259968948M",
+  "b2b": [
+    {
+      "ctin": "29AAECS8822V1Z7",
+      "inv": [
+        {
+          "inum": "SIL/24-25/161",
+          "idt": "02-12-2024",
+          "val": 275520.56,
+          "pos": "29",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 233492.0,
+                "camt": 21014.28,
+                "samt": 21014.28,
+                "iamt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "ctin": "29AAJFP4466W1ZX",
+      "inv": [
+        {
+          "inum": "PRU/24-25/284",
+          "idt": "12-12-2024",
+          "val": 365628.9,
+          "pos": "29",
+          "itms": [
+            {
+              "num": 1,
+              "itm_det": {
+                "rt": 18,
+                "txval": 309855.0,
+                "camt": 27886.95,
+                "samt": 27886.95,
+                "iamt": 0.0,
+                "csamt": 0.0
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ],
+  "isd": [
+    {
+      "gstin": "29AABCV1234K1Z9",
+      "doc_num": "ISD/24-25/122024/29",
+      "doc_dt": "31-12-2024",
+      "elig": "E",
+      "igst": 0.0,
+      "cgst": 28362.72,
+      "sgst": 28362.72,
+      "cess": 0.0
+    },
+    {
+      "gstin": "27AABCV1234K1ZD",
+      "doc_num": "ISD/24-25/122024/27",
+      "doc_dt": "31-12-2024",
+      "elig": "E",
+      "igst": 30318.76,
+      "cgst": 0.0,
+      "sgst": 0.0,
+      "cess": 0.0
+    },
+    {
+      "gstin": "33AABCV1234K1ZK",
+      "doc_num": "ISD/24-25/122024/33",
+      "doc_dt": "31-12-2024",
+      "elig": "E",
+      "igst": 10758.27,
+      "cgst": 0.0,
+      "sgst": 0.0,
+      "cess": 0.0
+    }
+  ],
+  "distribution_basis": "Turnover of preceding financial year - Rule 39(1)(d)",
+  "mock_note": "TN GSTIN was registered only from 12-08-2024 - distributions to it before that date are a deliberate defect for pre-Aug periods."
+}

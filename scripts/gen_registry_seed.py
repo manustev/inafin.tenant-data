@@ -65,6 +65,13 @@ DISPATCH_MECHANISM_PATH = ROOT / "migrations" / "shared" / "023_dispatch_mechani
 #: it ever reaches SQL.
 DISPATCH_MECHANISMS = frozenset({
     "PDF_EXTRACTION", "SALES_REGISTER", "REGISTER_LOADER", "ARCHETYPE1_PROMOTE",
+    # Added shared migration 033, hand-written (023_dispatch_mechanism.sql is
+    # already applied and pinned — see 033's own header for why this value
+    # widens that CHECK constraint in a new migration rather than by
+    # regenerating 023 in place). Kept here only so this validation set
+    # matches what's actually allowed in the live cluster; DISPATCH_MECHANISM_PATH
+    # must NOT be regenerated to add it.
+    "GSTN_JSON_PROMOTE",
 })
 
 # A new CSV column becomes a NEW migration, never an edit to an applied one —

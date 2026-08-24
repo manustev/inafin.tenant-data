@@ -1,0 +1,603 @@
+{
+  "generated_on": "2026-08-18",
+  "seed": 20240401,
+  "entity": {
+    "legal_name": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+    "pan": "AABCV1234K",
+    "cin": "U28999KA2011PTC061234",
+    "gstins": {
+      "karnataka": "29AABCV1234K1Z9",
+      "maharashtra": "27AABCV1234K1ZD",
+      "tamil_nadu": "33AABCV1234K1ZK",
+      "isd": "29AABCV1234K2Z8"
+    }
+  },
+  "financial_year": "2024-25",
+  "file_count": 146,
+  "files": [
+    {
+      "path": "ANOMALY_KEY.json",
+      "bytes": 7990
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_012025.json",
+      "bytes": 5962
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_022025.json",
+      "bytes": 5846
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_032025.json",
+      "bytes": 5725
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_042024.json",
+      "bytes": 5827
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_052024.json",
+      "bytes": 5731
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_062024.json",
+      "bytes": 5961
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_072024.json",
+      "bytes": 5952
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_082024.json",
+      "bytes": 6072
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_092024.json",
+      "bytes": 5719
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_102024.json",
+      "bytes": 6015
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_112024.json",
+      "bytes": 5734
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_27AABCV1234K1ZD_122024.json",
+      "bytes": 5495
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_012025.json",
+      "bytes": 14926
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_022025.json",
+      "bytes": 14560
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_032025.json",
+      "bytes": 14904
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_042024.json",
+      "bytes": 13366
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_052024.json",
+      "bytes": 14751
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_062024.json",
+      "bytes": 14865
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_072024.json",
+      "bytes": 14905
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_082024.json",
+      "bytes": 14976
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_092024.json",
+      "bytes": 14690
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_102024.json",
+      "bytes": 14688
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_112024.json",
+      "bytes": 14976
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_29AABCV1234K1Z9_122024.json",
+      "bytes": 15037
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_33AABCV1234K1ZK_012025.json",
+      "bytes": 4073
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_33AABCV1234K1ZK_022025.json",
+      "bytes": 4070
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_33AABCV1234K1ZK_032025.json",
+      "bytes": 3763
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_33AABCV1234K1ZK_092024.json",
+      "bytes": 3690
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_33AABCV1234K1ZK_102024.json",
+      "bytes": 3992
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_33AABCV1234K1ZK_112024.json",
+      "bytes": 3594
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_33AABCV1234K1ZK_122024.json",
+      "bytes": 3759
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.01_GSTR-1/GSTR1_all_lines_FY2024-25.csv",
+      "bytes": 61585
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.02_ARN_and_Filing_Date/return_filing_arn_register_FY2024-25.csv",
+      "bytes": 7550
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_012025.json",
+      "bytes": 5642
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_022025.json",
+      "bytes": 5114
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_032025.json",
+      "bytes": 5121
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_042024.json",
+      "bytes": 5360
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_052024.json",
+      "bytes": 5342
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_062024.json",
+      "bytes": 5619
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_072024.json",
+      "bytes": 5114
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_082024.json",
+      "bytes": 5376
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_092024.json",
+      "bytes": 5342
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_102024.json",
+      "bytes": 5627
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_112024.json",
+      "bytes": 5378
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_27AABCV1234K1ZD_122024.json",
+      "bytes": 4851
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_012025.json",
+      "bytes": 12282
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_022025.json",
+      "bytes": 12537
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_032025.json",
+      "bytes": 11761
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_042024.json",
+      "bytes": 12537
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_052024.json",
+      "bytes": 12019
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_062024.json",
+      "bytes": 12279
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_072024.json",
+      "bytes": 11797
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_082024.json",
+      "bytes": 12532
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_092024.json",
+      "bytes": 12259
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_102024.json",
+      "bytes": 12254
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_112024.json",
+      "bytes": 12265
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_29AABCV1234K1Z9_122024.json",
+      "bytes": 12308
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.03_GSTR-2B/GSTR2B_all_lines_FY2024-25.csv",
+      "bytes": 35884
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.04_GSTR-2B_Amendment_History/GSTR2B_amendment_history_FY2024-25.csv",
+      "bytes": 976
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.04_GSTR-2B_Amendment_History/GSTR2B_amendment_history_FY2024-25.json",
+      "bytes": 1683
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_012025.json",
+      "bytes": 2457
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_022025.json",
+      "bytes": 2442
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_032025.json",
+      "bytes": 2445
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_042024.json",
+      "bytes": 2451
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_052024.json",
+      "bytes": 2448
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_062024.json",
+      "bytes": 2457
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_072024.json",
+      "bytes": 2449
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_082024.json",
+      "bytes": 2459
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_092024.json",
+      "bytes": 2443
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_102024.json",
+      "bytes": 2453
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_112024.json",
+      "bytes": 2460
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_27AABCV1234K1ZD_122024.json",
+      "bytes": 2440
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_012025.json",
+      "bytes": 2539
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_022025.json",
+      "bytes": 2497
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_032025.json",
+      "bytes": 2474
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_042024.json",
+      "bytes": 2473
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_052024.json",
+      "bytes": 2495
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_062024.json",
+      "bytes": 2482
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_072024.json",
+      "bytes": 2464
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_082024.json",
+      "bytes": 2496
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_092024.json",
+      "bytes": 2526
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_102024.json",
+      "bytes": 2536
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_112024.json",
+      "bytes": 2488
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_29AABCV1234K1Z9_122024.json",
+      "bytes": 2480
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_33AABCV1234K1ZK_012025.json",
+      "bytes": 2384
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_33AABCV1234K1ZK_022025.json",
+      "bytes": 2383
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_33AABCV1234K1ZK_032025.json",
+      "bytes": 2383
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_33AABCV1234K1ZK_092024.json",
+      "bytes": 2383
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_33AABCV1234K1ZK_102024.json",
+      "bytes": 2388
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_33AABCV1234K1ZK_112024.json",
+      "bytes": 2384
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_33AABCV1234K1ZK_122024.json",
+      "bytes": 2388
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.05_GSTR-3B/GSTR3B_summary_FY2024-25.csv",
+      "bytes": 5677
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.06_GSTR-9_Annual_Return/GSTR9_27AABCV1234K1ZD_2024-25.json",
+      "bytes": 1662
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.06_GSTR-9_Annual_Return/GSTR9_29AABCV1234K1Z9_2024-25.json",
+      "bytes": 1698
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.06_GSTR-9_Annual_Return/GSTR9_33AABCV1234K1ZK_2024-25.json",
+      "bytes": 1566
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.07_GSTR-9C/GSTR9C_29AABCV1234K1Z9_2024-25.json",
+      "bytes": 1932
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.08_GSTR-2A_Historical/GSTR2A_29AABCV1234K1Z9_042018.json",
+      "bytes": 9060
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.08_GSTR-2A_Historical/GSTR2A_29AABCV1234K1Z9_052018.json",
+      "bytes": 10155
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.08_GSTR-2A_Historical/GSTR2A_29AABCV1234K1Z9_062018.json",
+      "bytes": 7977
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_012025.json",
+      "bytes": 2079
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_022025.json",
+      "bytes": 2080
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_032025.json",
+      "bytes": 2082
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_042024.json",
+      "bytes": 2080
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_052024.json",
+      "bytes": 2080
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_062024.json",
+      "bytes": 2080
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_072024.json",
+      "bytes": 2080
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_082024.json",
+      "bytes": 2078
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_092024.json",
+      "bytes": 2083
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_102024.json",
+      "bytes": 2081
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_112024.json",
+      "bytes": 2080
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.09_GSTR-6_ISD/GSTR6_29AABCV1234K2Z8_122024.json",
+      "bytes": 2083
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.10_GSTR-7_TDS/GSTR7_TDS_credit_FY2024-25.csv",
+      "bytes": 3664
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.10_GSTR-7_TDS/GSTR7_TDS_credit_FY2024-25.json",
+      "bytes": 9323
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.11_GSTR-8_TCS/GSTR8_TCS_by_operator_FY2024-25.csv",
+      "bytes": 28294
+    },
+    {
+      "path": "B1_GSTN_Filed_Returns/B1.11_GSTR-8_TCS/GSTR8_TCS_by_operator_FY2024-25.json",
+      "bytes": 84641
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.01_REG-06_Taxpayer/REG06_29AABCV1234K1Z9.pdf",
+      "bytes": 3248
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.01_REG-06_Taxpayer/REG06_taxpayer_all_GSTINs.csv",
+      "bytes": 3018
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.01_REG-06_Taxpayer/REG06_taxpayer_all_GSTINs.json",
+      "bytes": 5682
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.02_REG-06_Customers/customer_registration_status.csv",
+      "bytes": 1804
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.03_REG-06_Suppliers/supplier_registration_status.csv",
+      "bytes": 2256
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.04_Registration_Amendment_History/registration_amendment_history.csv",
+      "bytes": 572
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.05_Composition_Optin_Optout/composition_scheme_events.csv",
+      "bytes": 310
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.06_ISD_Registration/ISD_registration_certificate.json",
+      "bytes": 727
+    },
+    {
+      "path": "B2_Registration_and_Status/B2.07_GSTIN_Status_at_Date/gstin_status_at_date.csv",
+      "bytes": 3696
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.01_Open_SCN_Register/DRC01_SCN_ZD290920240012345.pdf",
+      "bytes": 3319
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.01_Open_SCN_Register/open_scn_register.csv",
+      "bytes": 1032
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.01_Open_SCN_Register/open_scn_register.json",
+      "bytes": 1854
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.02_DRC-01B_Notices/DRC01B_29_092024.pdf",
+      "bytes": 3328
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.02_DRC-01B_Notices/drc01b_notices.json",
+      "bytes": 769
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.03_DRC-03_Voluntary_Payments/drc03_voluntary_payments.csv",
+      "bytes": 612
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.04_Amnesty_Settlement/amnesty_settlement_orders.csv",
+      "bytes": 491
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.05_Court_Stay_Orders/court_stay_orders.csv",
+      "bytes": 484
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.06_Hearing_and_Adjudication_Orders/hearing_and_adjudication_orders.csv",
+      "bytes": 482
+    },
+    {
+      "path": "B3_Notices_Proceedings_Settlements/B3.07_Refund_Applications/rfd01_refund_applications.csv",
+      "bytes": 1015
+    },
+    {
+      "path": "B4_EInvoice_and_EWayBill/B4.01_IRN_Register/irn_register_FY2024-25.csv",
+      "bytes": 71254
+    },
+    {
+      "path": "B4_EInvoice_and_EWayBill/B4.01_IRN_Register/irn_sample_payload.json",
+      "bytes": 1290
+    },
+    {
+      "path": "B4_EInvoice_and_EWayBill/B4.02_EWayBill_Outward_Register/eway_bill_outward_register_FY2024-25.csv",
+      "bytes": 60308
+    },
+    {
+      "path": "B4_EInvoice_and_EWayBill/B4.03_EWayBill_Threshold_History/eway_bill_threshold_history.csv",
+      "bytes": 1657
+    },
+    {
+      "path": "B4_EInvoice_and_EWayBill/B4.04_EInvoice_Threshold_History/einvoice_threshold_history.csv",
+      "bytes": 657
+    },
+    {
+      "path": "B5_ICEGATE_Customs/B5.01_Shipping_Bill_Data/icegate_shipping_bills_FY2024-25.csv",
+      "bytes": 6895
+    },
+    {
+      "path": "B5_ICEGATE_Customs/B5.02_EGM_Status/icegate_egm_status_FY2024-25.csv",
+      "bytes": 2460
+    },
+    {
+      "path": "B5_ICEGATE_Customs/B5.03_Bill_of_Entry_Data/icegate_bill_of_entry_FY2024-25.csv",
+      "bytes": 1456
+    },
+    {
+      "path": "B6_DGFT_Portal/B6.01_eBRC/dgft_ebrc_register_FY2024-25.csv",
+      "bytes": 4668
+    },
+    {
+      "path": "B6_DGFT_Portal/B6.02_IEC_Registry/dgft_iec_registry.json",
+      "bytes": 1057
+    },
+    {
+      "path": "B6_DGFT_Portal/B6.03_Export_Obligation_Status/dgft_export_obligation_status.csv",
+      "bytes": 800
+    }
+  ]
+}

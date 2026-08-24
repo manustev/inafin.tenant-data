@@ -1,0 +1,10 @@
+gstin,legal_name,trade_name,party_type,pan,state_code,registration_type,effective_date_of_registration,status,cancellation_date,cancellation_type,filing_status_last_6_returns,notes
+29AACCS7712F1ZB,SRIRAM AUTO COMPONENTS PRIVATE LIMITED,Sriram Auto Components Private Limited,Customer,AACCS7712F,29,Regular,01-07-2017,Active,,,Regular,
+29AAGFK9012M1ZX,KAVERI HYDRAULICS LLP,Kaveri Hydraulics Llp,Customer,AAGFK9012M,29,Regular,01-07-2017,Active,,,Regular,
+36AABCD4455L1ZH,DECCAN MACHINE TOOLS PRIVATE LIMITED,Deccan Machine Tools Private Limited,Customer,AABCD4455L,36,Regular,01-07-2017,Active,,,Regular,
+07AAACN8899J1ZP,NORTHERN VALVE SYSTEMS PRIVATE LIMITED,Northern Valve Systems Private Limited,Customer,AAACN8899J,07,Regular,01-07-2017,Active,,,Regular,
+27AAEFS1122H1ZJ,SAHYADRI ENGINEERING WORKS,Sahyadri Engineering Works,Customer,AAEFS1122H,27,Regular,01-07-2017,Active,,,Regular,
+19AAACB6677K1Z6,BENGAL PUMPS AND SEALS PRIVATE LIMITED,Bengal Pumps And Seals Private Limited,Customer,AAACB6677K,19,Regular,01-07-2017,Cancelled,30-09-2024,Suo-moto (retrospective),Defaulter,Retrospectively cancelled w.e.f. 30-09-2024 - invoices after this date are a finding
+29ADHPG5566Q1ZQ,GOKUL TRADERS,Gokul Traders,Customer,ADHPG5566Q,29,Composition,01-07-2017,Active,,,Regular,Composition dealer - cannot pass ITC; supply to them is normal B2B for us
+29AAAGK3344N1Z0,KARNATAKA STATE INFRA DEVELOPMENT CORPORATION,Karnataka State Infra Development Corporation,Customer,AAAGK3344N,29,Regular,01-07-2017,Active,,,Regular,"Government entity - deducts TDS u/s 51, appears in GSTR-7"
+29AAFCQ2233R1ZV,QUANTUM PRECISION SEZ UNIT PRIVATE LIMITED,Quantum Precision Sez Unit Private Limited,Customer,AAFCQ2233R,29,SEZ Unit,01-07-2017,Active,,,Regular,SEZ unit in Aerospace SEZ Devanahalli - zero rated supply

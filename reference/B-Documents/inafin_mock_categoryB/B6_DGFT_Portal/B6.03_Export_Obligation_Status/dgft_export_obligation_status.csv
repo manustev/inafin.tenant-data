@@ -1,0 +1,4 @@
+licence_type,licence_no,licence_date,issuing_authority,capital_goods_description,duty_saved_inr,export_obligation_inr,eo_period_years,eo_due_date,eo_fulfilled_inr,eo_fulfilled_percent,block_wise_status,eodc_status,status
+EPCG,0730012345,22-05-2021,DGFT RA Bengaluru,CNC machining centre,8420000.0,50520000.0,6,21-05-2027,31860000.0,63.1,"Block 1 (4 yr, 50%) fulfilled",Not issued,Live - on track
+Advance Authorisation,0710098765,09-08-2022,DGFT RA Bengaluru,Duty free import of alloy steel bars (input),2140000.0,12840000.0,1.5,08-02-2024,9630000.0,75.0,Not applicable,Not issued,DEFAULTED - export obligation period expired with 25% shortfall
+EPCG,0730077889,30-11-2023,DGFT RA Bengaluru,CMM inspection system,3180000.0,19080000.0,6,29-11-2029,4290000.0,22.5,Block 1 in progress,Not issued,Live

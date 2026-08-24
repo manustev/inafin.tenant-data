@@ -225,6 +225,14 @@ def test_the_catalog_covers_every_a1_type_except_sales_register(
 
     Fails when a new type gets a table and a registry row but no spec — which is
     otherwise invisible until someone uploads one and gets a KeyError.
+
+    `GSTR_2B` (2026-08-19) and `GSTR_3B` (2026-08-24) are the other named
+    exceptions: archetype-5 typed tables (`GSTN_JSON_PROMOTE`,
+    `src/silver/gstn_returns/gstr2b.py`/`gstr3b.py`), not A1 registers — this
+    test's scope has always been A1 coverage specifically, not "every
+    table_name in the registry", so named non-A1 exceptions are the correct
+    fix here, not a widened assertion that would stop catching the A1 gap
+    this test exists for.
     """
     with_tables = {
         str(code)
@@ -233,7 +241,11 @@ def test_the_catalog_covers_every_a1_type_except_sales_register(
             " WHERE table_name IS NOT NULL"
         ).fetchall()
     }
-    assert with_tables - set(SPEC_BY_DOC_TYPE) == {"SALES_REGISTER"}
+    assert with_tables - set(SPEC_BY_DOC_TYPE) == {
+        "SALES_REGISTER",
+        "GSTR_2B",
+        "GSTR_3B",
+    }
 
 
 def test_v1_view_exposes_every_business_column(

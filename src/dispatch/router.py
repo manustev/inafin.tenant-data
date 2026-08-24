@@ -33,16 +33,22 @@ from __future__ import annotations
 
 import datetime as dt
 import uuid
+from collections.abc import Callable
 from dataclasses import dataclass
 from typing import cast
 
 from src.core.pool import TenantScopedPool
 from src.core.tenant import Role, TenantContext
+from src.dispatch.manifest import read_batch_manifest
+from src.events.publisher import BatchPublisherPort
 from src.extraction.base import DocumentExtractor
 from src.extraction.dispatch import run_extraction
 from src.extraction.reader import PdfTextPort
 from src.extraction.registry import build_extractor_registry
 from src.provisioning.objectstore import ObjectStorePort
+from src.silver.gstn_returns import GstnReturnLoaderPort
+from src.silver.gstn_returns.gstr2b import Gstr2bLoader
+from src.silver.gstn_returns.gstr3b import Gstr3bLoader
 from src.silver.promote import SilverPromotionService
 from src.silver.registers.catalog import spec_for
 from src.silver.registers.loader import RegisterLoader
@@ -59,6 +65,18 @@ _PDF_EXTRACTION = "PDF_EXTRACTION"
 _SALES_REGISTER = "SALES_REGISTER"
 _REGISTER_LOADER = "REGISTER_LOADER"
 _ARCHETYPE1_PROMOTE = "ARCHETYPE1_PROMOTE"
+_GSTN_JSON_PROMOTE = "GSTN_JSON_PROMOTE"
+
+#: doc_type_code -> loader class for GSTN_JSON_PROMOTE. Unlike the other four
+#: mechanisms, this one is NOT shape-uniform across the types it will
+#: eventually serve (D3, HANDOFF-2026-08-19-categoryB.md) — GSTR_1/9/9C
+#: will each need their own loader class, the same "bespoke Python per type"
+#: shape `src/extraction/register_types.py` already uses for archetype 2.
+#: `GSTR_2B`/`GSTR_3B` are built so far.
+_GSTN_RETURN_LOADERS: dict[str, Callable[[TenantScopedPool], GstnReturnLoaderPort]] = {
+    "GSTR_2B": Gstr2bLoader,
+    "GSTR_3B": Gstr3bLoader,
+}
 
 
 class NoDispatchMechanismError(ValueError):
@@ -114,6 +132,7 @@ async def dispatch_load(
     ingest_run_id: uuid.UUID | None = None,
     extractor_registry: dict[str, DocumentExtractor] | None = None,
     reader: PdfTextPort | None = None,
+    publisher: BatchPublisherPort | None = None,
 ) -> DispatchOutcome:
     """Resolve `doc_type_code`'s `dispatch_mechanism` and run it.
 
@@ -121,6 +140,12 @@ async def dispatch_load(
     many artefacts in one request (skip re-querying the registry / reuse a
     reader that has OCR wired in) — the same trade `run_extraction` and
     `build_extractor_registry` already make; left unset, each is built fresh.
+
+    `publisher`, if given, rings Pipeline 2's Kafka doorbell once the write
+    that produced this outcome has committed — see `_publish_if_ready`.
+    `publisher=None` (the default) means no doorbell is wired for this
+    caller, the same "escape hatch defaults to off" shape `store`/`reader`
+    already use here.
     """
     mechanism = await _resolve_mechanism(pool, ctx, doc_type_code)
     if not mechanism:
@@ -140,11 +165,11 @@ async def dispatch_load(
             ingest_id=ingest_id, entity_id=entity_id, doc_type_code=doc_type_code,
             pdf_bytes=data, ingest_run_id=ingest_run_id, reader=reader, registry=registry,
         )
-        return DispatchOutcome(
-            mechanism=mechanism, batch_id=None, written=write_result.written,
+        return await _publish_if_ready(pool, ctx, publisher, DispatchOutcome(
+            mechanism=mechanism, batch_id=write_result.batch_id, written=write_result.written,
             status="ACCEPTED" if write_result.written else "QUARANTINED",
             detail=(outcome, write_result),
-        )
+        ))
 
     if mechanism == _SALES_REGISTER:
         _require(gstin=gstin, period_start=period_start, period_end=period_end)
@@ -153,11 +178,11 @@ async def dispatch_load(
             data=data, period_start=cast("dt.date", period_start),
             period_end=cast("dt.date", period_end), ingest_run_id=ingest_run_id,
         )
-        return DispatchOutcome(
+        return await _publish_if_ready(pool, ctx, publisher, DispatchOutcome(
             mechanism=mechanism, batch_id=sales_result.batch_id, written=True,
             status="ACCEPTED",
             detail=sales_result,
-        )
+        ))
 
     if mechanism == _REGISTER_LOADER:
         _require(gstin=gstin, period_start=period_start, period_end=period_end)
@@ -167,26 +192,72 @@ async def dispatch_load(
             period_end=cast("dt.date", period_end), doc_type_code=doc_type_code,
             ingest_run_id=ingest_run_id, content_format=content_format,
         )
-        return DispatchOutcome(
+        return await _publish_if_ready(pool, ctx, publisher, DispatchOutcome(
             mechanism=mechanism, batch_id=register_result.batch_id, written=True,
             status="PARTIAL" if register_result.rejected > 0 else "ACCEPTED",
             detail=register_result,
-        )
+        ))
 
     if mechanism == _ARCHETYPE1_PROMOTE:
         _require(period_start=period_start, period_end=period_end)
-        manifest = await SilverPromotionService(pool).promote_transaction_documents(
+        promotion_manifest = await SilverPromotionService(pool).promote_transaction_documents(
             ctx, document_type=doc_type_code, ingest_id=ingest_id, entity_id=entity_id,
             data=data, period_start=cast("dt.date", period_start),
             period_end=cast("dt.date", period_end), ingest_run_id=ingest_run_id,
         )
-        return DispatchOutcome(
-            mechanism=mechanism, batch_id=manifest.batch_id, written=True,
+        return await _publish_if_ready(pool, ctx, publisher, DispatchOutcome(
+            mechanism=mechanism, batch_id=promotion_manifest.batch_id, written=True,
             status="ACCEPTED",
-            detail=manifest,
+            detail=promotion_manifest,
+        ))
+
+    if mechanism == _GSTN_JSON_PROMOTE:
+        _require(gstin=gstin, period_start=period_start, period_end=period_end)
+        try:
+            loader_cls = _GSTN_RETURN_LOADERS[doc_type_code]
+        except KeyError:
+            raise NoDispatchMechanismError(
+                f"{doc_type_code!r} has dispatch_mechanism=GSTN_JSON_PROMOTE but "
+                f"no loader is registered for it yet in "
+                f"src/dispatch/router.py:_GSTN_RETURN_LOADERS"
+            ) from None
+        return_outcome = await loader_cls(pool).load(
+            ctx, entity_id=entity_id, gstin=cast(str, gstin), ingest_id=ingest_id,
+            data=data, period_start=cast("dt.date", period_start),
+            period_end=cast("dt.date", period_end), ingest_run_id=ingest_run_id,
         )
+        return await _publish_if_ready(pool, ctx, publisher, DispatchOutcome(
+            mechanism=mechanism, batch_id=return_outcome.batch_id,
+            written=return_outcome.inserted,
+            status="ACCEPTED",
+            detail=return_outcome,
+        ))
 
     raise AssertionError(f"unreachable dispatch_mechanism {mechanism!r}")
+
+
+async def _publish_if_ready(
+    pool: TenantScopedPool,
+    ctx: TenantContext,
+    publisher: BatchPublisherPort | None,
+    outcome: DispatchOutcome,
+) -> DispatchOutcome:
+    """Rings Pipeline 2's Kafka doorbell for any outcome that actually wrote
+    a batch, generically across all four mechanisms — see
+    `src/dispatch/manifest.py`'s module docstring for why one read (keyed on
+    `outcome.batch_id`) is enough regardless of which mechanism produced it.
+
+    A QUARANTINED outcome (`batch_id is None`) is never published — there is
+    no `ingest_batch` row yet for a consumer to read. `publisher=None` (no
+    doorbell wired for this caller) is likewise a no-op, not an error.
+    `BatchPublisher.publish` itself never raises (its own docstring), so
+    nothing here needs a try/except to preserve "a broker outage degrades
+    latency, not correctness."
+    """
+    if publisher is not None and outcome.batch_id is not None:
+        manifest = await read_batch_manifest(pool, ctx, outcome.batch_id)
+        await publisher.publish(manifest)
+    return outcome
 
 
 async def _resolve_mechanism(pool: TenantScopedPool, ctx: TenantContext, doc_type_code: str) -> str:

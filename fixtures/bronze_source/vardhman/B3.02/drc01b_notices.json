@@ -1,0 +1,19 @@
+[
+  {
+    "reference_no": "DRC01B/29/202409/00417",
+    "form": "DRC-01B Part A",
+    "gstin": "29AABCV1234K1Z9",
+    "tax_period": "092024",
+    "issue_date": "26-11-2024",
+    "liability_declared_in_gstr1": 9181257.14,
+    "liability_paid_in_gstr3b": 5283161.42,
+    "difference": 3898095.72,
+    "threshold_breached": "Yes - difference exceeds the parameters notified under Rule 88C",
+    "response_form": "DRC-01B Part B",
+    "response_due_date": "26-12-2024",
+    "response_filed": "No",
+    "status": "Open",
+    "remark": "System generated intimation of difference between liability declared in GSTR-1 and liability paid in GSTR-3B. Amounts to be filled from the generated GSTR-1/GSTR-3B pair for 092024.",
+    "approx_tax_differential_at_18pc": 701657.23
+  }
+]

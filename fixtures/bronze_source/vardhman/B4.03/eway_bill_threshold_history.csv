@@ -1,0 +1,13 @@
+effective_from,scope,state,threshold_inr,notification,note
+01-02-2018,Inter-state (trial - withdrawn),All India,50000,Notification 74/2017-CT,Trial rollout suspended on 01-02-2018 due to portal failure
+01-04-2018,Inter-state,All India,50000,Notification 15/2018-CT,Mandatory inter-state EWB
+01-04-2018,Intra-state,Karnataka,50000,Karnataka Commercial Taxes notification,First state to go live intra-state
+15-04-2018,Intra-state,"Andhra Pradesh, Gujarat, Kerala, Telangana, Uttar Pradesh",50000,Respective state notifications,Phase 2 rollout
+20-04-2018,Intra-state,"Bihar, Jharkhand, Haryana, Himachal Pradesh, Madhya Pradesh, Tripura, Uttarakhand",50000,Respective state notifications,Phase 3 rollout
+25-04-2018,Intra-state,"Arunachal Pradesh, Meghalaya, Sikkim, Puducherry",50000,Respective state notifications,Phase 4 rollout
+01-06-2018,Intra-state,"Maharashtra, Manipur",100000,Maharashtra Notification 15E/2018,"Maharashtra intra-state threshold is Rs.1,00,000, not Rs.50,000"
+03-06-2018,Intra-state,All remaining states and UTs,50000,Respective state notifications,All-India intra-state coverage complete by 16-06-2018
+02-06-2018,Intra-state,Delhi,100000,Delhi Notification 3/2018,"Delhi intra-state threshold Rs.1,00,000"
+01-06-2018,Intra-state,Tamil Nadu,100000,TN Notification 09/2018,"Tamil Nadu intra-state threshold Rs.1,00,000"
+01-06-2018,Intra-state,West Bengal,100000,WB Trade Circular 11/2018,"West Bengal intra-state threshold Rs.1,00,000 (later Rs.50,000 for job work movement)"
+01-04-2019,Intra-state,Rajasthan,100000,Rajasthan Notification F.17(131)ACCT/GST/2017/3743,"Rajasthan intra-state threshold revised to Rs.1,00,000"

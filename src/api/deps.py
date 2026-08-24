@@ -17,6 +17,7 @@ from src.bronze.service import BronzeIngestionService
 from src.core.errors import AuthenticationError
 from src.core.pool import TenantScopedPool
 from src.core.tenant import TenantContext
+from src.events.publisher import BatchPublisherPort
 from src.extraction.reader import PdfTextPort
 from src.provisioning.objectstore import ObjectStorePort
 from src.reader.entitlement_reader import EntitlementReader
@@ -47,6 +48,10 @@ def get_entitlement_reader(request: Request) -> EntitlementReader:
     return request.app.state.entitlement_reader  # type: ignore[no-any-return]
 
 
+def get_batch_publisher(request: Request) -> BatchPublisherPort:
+    return request.app.state.batch_publisher  # type: ignore[no-any-return]
+
+
 def get_tenant(request: Request) -> TenantContext:
     """Resolve the caller's tenant via `request.app.state.auth`.
 
@@ -68,3 +73,4 @@ StoreDep = Annotated[ObjectStorePort, Depends(get_store)]
 PdfTextReaderDep = Annotated[PdfTextPort, Depends(get_pdf_text_reader)]
 SilverReaderDep = Annotated[SilverReader, Depends(get_silver_reader)]
 EntitlementReaderDep = Annotated[EntitlementReader, Depends(get_entitlement_reader)]
+BatchPublisherDep = Annotated[BatchPublisherPort, Depends(get_batch_publisher)]

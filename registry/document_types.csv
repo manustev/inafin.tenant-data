@@ -75,9 +75,9 @@ A7.04,,FORM_15CA_15CB,Form 15CA / 15CB remittance certificates,A,A7,CONDITIONAL,
 A7.05,,SCOMET_LICENCE,SCOMET licence,A,A7,CONDITIONAL,BOTH,A8,B,3,HYBRID,ONE_TIME,CLIENT_DGFT,Required where the taxpayer exports SCOMET items.,,"authority=DGFT;fields=instrument_number:text!:""SCOMET Licence No."",validity:date_range!:""Validity""",,PDF_EXTRACTION
 B1.01,,GSTR_1,GSTR-1 — all periods all tables,B,B1,MANDATORY,BOTH,"A1,A2,A7,A8,A9,A10",A,5,STRUCTURED,PERIODIC,GSTN_API,Government record of declared outward supply. Raw API response retained in Bronze per ADR-002.,,,,
 B1.02,,GSTR_1_ARN,GSTR-1 ARN and filing date,B,B1,MANDATORY,BOTH,"A1,A6",A,5,STRUCTURED,PERIODIC,GSTN_API,Delayed filings trigger interest computation from due date.,,,,
-B1.03,,GSTR_2B,GSTR-2B — auto-populated ITC statement,B,B1,MANDATORY,BOTH,"B1,B2,B5,B6,B8",A,5,STRUCTURED,PERIODIC,GSTN_API,Authoritative ITC availability. Cap on claimable ITC post s.16(2)(aa).,,,,
+B1.03,,GSTR_2B,GSTR-2B — auto-populated ITC statement,B,B1,MANDATORY,BOTH,"B1,B2,B5,B6,B8",A,5,STRUCTURED,PERIODIC,GSTN_API,Authoritative ITC availability. Cap on claimable ITC post s.16(2)(aa).,,,gstr_2b,GSTN_JSON_PROMOTE
 B1.04,,GSTR_2B_AMENDMENT_HISTORY,GSTR-2B amendment history,B,B1,MANDATORY,BOTH,"B1,B8",A,5,STRUCTURED,PERIODIC,GSTN_API,Supplier amendments affect ITC already claimed in prior periods.,,,,
-B1.05,,GSTR_3B,GSTR-3B — all periods,B,B1,MANDATORY,BOTH,"A1,A10,B1,B2,B3,B4,B5,B6,B7",A,5,STRUCTURED,PERIODIC,GSTN_API,What was declared and paid.,,,,
+B1.05,,GSTR_3B,GSTR-3B — all periods,B,B1,MANDATORY,BOTH,"A1,A10,B1,B2,B3,B4,B5,B6,B7",A,5,STRUCTURED,PERIODIC,GSTN_API,What was declared and paid.,,,gstr_3b,GSTN_JSON_PROMOTE
 B1.06,,GSTR_9,GSTR-9 Annual Return,B,B1,MANDATORY,BOTH,"A1,A2,A10,B1,B4",A,5,STRUCTURED,PERIODIC,GSTN_API,Formal reconciliation target for turnover and ITC.,,,,
 B1.07,,GSTR_9C,GSTR-9C Reconciliation Statement,B,B1,MANDATORY,BOTH,"A2,A3",A,5,STRUCTURED,PERIODIC,GSTN_API,Platform computes the bridge independently and compares.,,,,
 B1.08,,GSTR_2A,GSTR-2A — historical pre-2020,B,B1,CONDITIONAL,FORENSIC,B1,A,5,STRUCTURED,PERIODIC,GSTN_API,Forensic engagements covering pre-GSTR-2B periods.,,,,

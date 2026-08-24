@@ -1,0 +1,3 @@
+arn,form,gstin,payment_date,cause_of_payment,period_from,period_to,section,issue,tax_igst,tax_cgst,tax_sgst,interest,penalty,total_paid,ledger_utilised,linked_notice
+AD290824000123X,DRC-03,29AABCV1234K1Z9,12-08-2024,Voluntary,04-2023,03-2024,73(5),ITC reversal under Rule 42 - short reversal on exempt turnover,0.0,412000.0,412000.0,148300.0,0.0,972300.0,Cash ledger,
+AD290225000456Y,DRC-03,29AABCV1234K1Z9,27-02-2025,SCN / Voluntary against notice,04-2021,03-2022,74(5),Part payment against SCN ZD290920240012345 - excess ITC FY 2021-22,1500000.0,0.0,0.0,612000.0,0.0,2112000.0,Cash ledger,ZD290920240012345

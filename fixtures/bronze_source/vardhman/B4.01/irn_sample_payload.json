@@ -1,0 +1,58 @@
+{
+  "Version": "1.1",
+  "TranDtls": {
+    "TaxSch": "GST",
+    "SupTyp": "B2B",
+    "RegRev": "N",
+    "IgstOnIntra": "N"
+  },
+  "DocDtls": {
+    "Typ": "INV",
+    "No": "VPI/KA/24-25/0001",
+    "Dt": "12-04-2024"
+  },
+  "SellerDtls": {
+    "Gstin": "29AABCV1234K1Z9",
+    "LglNm": "VARDHMAN PRECISION INDUSTRIES PRIVATE LIMITED",
+    "Addr1": "Plot 44, Phase II, Peenya",
+    "Loc": "Bengaluru",
+    "Pin": 560058,
+    "Stcd": "29"
+  },
+  "BuyerDtls": {
+    "Gstin": "27AAEFS1122H1ZJ",
+    "LglNm": "SAHYADRI ENGINEERING WORKS",
+    "Pos": "27",
+    "Addr1": "Industrial Suburb",
+    "Loc": "Bengaluru",
+    "Pin": 560022,
+    "Stcd": "27"
+  },
+  "ItemList": [
+    {
+      "SlNo": "1",
+      "PrdDesc": "Hot rolled steel plate (traded)",
+      "IsServc": "N",
+      "HsnCd": "72085190",
+      "Qty": 5,
+      "Unit": "MTS",
+      "TotAmt": 557039.05,
+      "AssAmt": 557039.05,
+      "GstRt": 18,
+      "IgstAmt": 100267.03,
+      "CgstAmt": 0.0,
+      "SgstAmt": 0.0,
+      "TotItemVal": 657306.08
+    }
+  ],
+  "ValDtls": {
+    "AssVal": 557039.05,
+    "IgstVal": 100267.03,
+    "CgstVal": 0.0,
+    "SgstVal": 0.0,
+    "TotInvVal": 657306.08
+  },
+  "AckNo": "110836973304627",
+  "AckDt": "12-04-2024 17:19:00",
+  "Irn": "05dd64633720a49698cd1dcda5c5fb87a54ec4ff37d390135e3b7a7bd5656889"
+}
