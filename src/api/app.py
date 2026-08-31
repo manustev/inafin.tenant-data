@@ -21,13 +21,14 @@ calls straight into `RegisterLoader`/`SilverPromotionService`/
 
 from __future__ import annotations
 
+import logging
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from strawberry.fastapi import GraphQLRouter
 
-from src.api.auth import StaticTokenAuth
+from src.api.auth import build_auth
 from src.api.graphql.schema import context_getter, schema
 from src.api.routes_ingest import router as ingest_router
 from src.bronze.scan import build_scanner
@@ -63,7 +64,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
     app.state.pool = pool
     app.state.store = store
-    app.state.auth = StaticTokenAuth(settings)
+    app.state.auth = build_auth(settings)
+    if settings.auth_mode == "none":
+        logging.getLogger(__name__).warning(
+            "=" * 72 + "\n"
+            "AUTH_MODE=none — authentication is DISABLED. Every request "
+            "with no Authorization header resolves to tenant %r. This must "
+            "NEVER run anywhere but a local developer machine.\n" + "=" * 72,
+            settings.dev_tenant_slug,
+        )
     app.state.bronze_service = BronzeIngestionService(
         pool, store, bucket_prefix=settings.s3_bucket_prefix,
         scanner=build_scanner(settings),

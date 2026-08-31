@@ -43,6 +43,10 @@ sys.path.insert(0, str(ROOT))
 # it names are real code, so what counts as "this doc_type_code is
 # PDF_EXTRACTION" or "REGISTER_LOADER" is read from that code, not re-typed
 # by hand into the CSV. See _check_dispatch_mechanism.
+from src.catalogue.document_schema import (  # noqa: E402
+    RegistryFacts,
+    derive_document_schemas,
+)
 from src.extraction.register_types import REGISTER_DOCUMENT_EXTRACTORS  # noqa: E402
 from src.extraction.spec import SpecError, parse_extraction_spec  # noqa: E402
 from src.silver.contract import ContractError, parse_contract  # noqa: E402
@@ -59,6 +63,9 @@ EXTRACTION_SPEC_PATH = ROOT / "migrations" / "shared" / "016_extraction_spec.sql
 #: (dispatch item #2's design session, 2026-08-13): leave that chain
 #: untouched, number past it.
 DISPATCH_MECHANISM_PATH = ROOT / "migrations" / "shared" / "023_dispatch_mechanism.sql"
+SCHEMA_CATALOGUE_PATH = (
+    ROOT / "migrations" / "shared" / "036_document_schema_catalogue_seed.sql"
+)
 
 #: The four values dispatch_mechanism may hold. Kept here, not just as a DB
 #: CHECK constraint, so _check_dispatch_mechanism can validate the CSV before
@@ -98,7 +105,76 @@ def arr(sections: str) -> str:
     return "ARRAY[" + ", ".join(q(p) for p in parts) + "]::text[]"
 
 
-def _write_cadence(canonical: list[dict[str, str]]) -> None:
+#: Generated files whose on-disk content NO LONGER matches what this script
+#: produces — and where that is correct, permanent, and must not be "fixed".
+#:
+#: Both were corrected AFTER they were applied, by a later migration, with the
+#: correction also written back into the CSV cell so the CSV stays the source
+#: of truth. The pinned file therefore lags the CSV on purpose:
+#:
+#:   004  ITC_04_ACKNOWLEDGEMENT's archetype 5 -> 6, by shared 014
+#:   023  GSTR_2B/GSTR_3B's dispatch rows and the widened CHECK, by shared 033
+#:
+#: Listing them here is what lets a routine run stay quiet about these two while
+#: still treating ANY OTHER changed file as a hard error. Removing an entry does
+#: not make the drift go away; it makes the generator refuse to run.
+KNOWN_SEALED: dict[pathlib.Path, str] = {
+    OUT_PATH: "ITC_04 archetype corrected 5->6 by shared migration 014",
+    DISPATCH_MECHANISM_PATH: (
+        "GSTR_2B/GSTR_3B rows and the widened CHECK added by shared migration 033"
+    ),
+}
+
+
+def _emit(path: pathlib.Path, text: str, *, force: bool) -> list[str]:
+    """Write a generated migration, refusing to silently rewrite a pinned one.
+
+    THIS FUNCTION EXISTS BECAUSE THE HAZARD IS REAL AND HAS BEEN HIT TWICE.
+    Every file this script writes is applied and checksum-pinned, so rewriting
+    one breaks `make migrate` for everybody. Two of them (see KNOWN_SEALED)
+    have since been corrected by a later migration, which means a fresh
+    generation legitimately DIFFERS from what is on disk. The fifth session
+    caught that by eye and reverted with `git checkout`; the eleventh session
+    tripped over it again while adding the schema catalogue. Eye-checking a
+    diff is not a control.
+
+    Three outcomes, and only three:
+      * path is in KNOWN_SEALED  -> never written; a note is printed. Expected.
+      * content is unchanged     -> written (a no-op) and silent.
+      * content would change     -> NOT written, returned as an error.
+
+    Returns the errors it declined to raise, so one refusal does not abort the
+    run before a genuinely new file (the schema catalogue) gets written.
+    `--force` overrides everything, for the one legitimate case: a file that
+    has never been applied anywhere.
+    """
+    if force:
+        path.write_text(text)
+        return []
+
+    if path in KNOWN_SEALED:
+        if path.exists() and path.read_text() != text:
+            print(
+                f"  sealed, not rewritten: {path.name} "
+                f"({KNOWN_SEALED[path]})",
+                file=sys.stderr,
+            )
+        return []
+
+    if path.exists() and path.read_text() != text:
+        return [
+            f"{path.name} exists and its content would change. It is applied "
+            f"and checksum-pinned, so rewriting it breaks `make migrate`. "
+            f"Carry the delta in a NEW migration instead (precedent: shared "
+            f"014 for 004, shared 033 for 023). Use --force only if this file "
+            f"has never been applied."
+        ]
+
+    path.write_text(text)
+    return []
+
+
+def _write_cadence(canonical: list[dict[str, str]], *, force: bool) -> list[str]:
     """Emit the refresh_cadence column as its own migration."""
     scoped = [r for r in canonical if r["stream"] != "CORPUS"]
     out: list[str] = []
@@ -146,10 +222,10 @@ def _write_cadence(canonical: list[dict[str, str]]) -> None:
     w("        OR (NOT in_scope AND refresh_cadence IS NULL));")
     w("")
 
-    CADENCE_PATH.write_text("\n".join(out))
+    return _emit(CADENCE_PATH, "\n".join(out), force=force)
 
 
-def _write_field_contract(canonical: list[dict[str, str]]) -> None:
+def _write_field_contract(canonical: list[dict[str, str]], *, force: bool) -> list[str]:
     """Emit the per-document-type field contract as its own migration.
 
     This is what ARCHITECTURE.md 6 means by holding the per-type column contract
@@ -198,10 +274,10 @@ def _write_field_contract(canonical: list[dict[str, str]]) -> None:
     w("    CHECK (field_contract = '' OR in_scope);")
     w("")
 
-    CONTRACT_PATH.write_text("\n".join(out))
+    return _emit(CONTRACT_PATH, "\n".join(out), force=force)
 
 
-def _write_extraction_spec(canonical: list[dict[str, str]]) -> None:
+def _write_extraction_spec(canonical: list[dict[str, str]], *, force: bool) -> list[str]:
     """Emit the per-document-type PDF extraction rule as its own migration.
 
     Corrective refactor, 2026-08-11: this is what used to be 36 hand-written
@@ -266,10 +342,10 @@ def _write_extraction_spec(canonical: list[dict[str, str]]) -> None:
     w("    CHECK (extraction_spec = '' OR in_scope);")
     w("")
 
-    EXTRACTION_SPEC_PATH.write_text("\n".join(out))
+    return _emit(EXTRACTION_SPEC_PATH, "\n".join(out), force=force)
 
 
-def _write_dispatch_mechanism(canonical: list[dict[str, str]]) -> None:
+def _write_dispatch_mechanism(canonical: list[dict[str, str]], *, force: bool) -> list[str]:
     """Emit the per-document-type Bronze->Silver routing mechanism as its own
     migration.
 
@@ -330,7 +406,83 @@ def _write_dispatch_mechanism(canonical: list[dict[str, str]]) -> None:
     w("    CHECK (dispatch_mechanism = '' OR in_scope);")
     w("")
 
-    DISPATCH_MECHANISM_PATH.write_text("\n".join(out))
+    return _emit(DISPATCH_MECHANISM_PATH, "\n".join(out), force=force)
+
+
+def _write_schema_catalogue(canonical: list[dict[str, str]], *, force: bool) -> list[str]:
+    """Emit the tenant-facing schema catalogue seed (tables: migration 035).
+
+    The derivation lives in `src/catalogue/document_schema.py`, not here, for
+    one reason: `tests/conformance/test_schema_catalogue.py` re-runs the SAME
+    function against the LIVE rows and fails on divergence. A derivation
+    written inline in this generator could only ever be checked against itself.
+
+    REGENERATION IS NOT THE FIX WHEN THIS DRIFTS. Migration 036 is applied and
+    checksum-pinned like every other; re-running this generator after adding a
+    RegisterSpec column would rewrite it and break `make migrate`. The drift
+    gate's failure message says so and names the alternative — a NEW migration
+    carrying the delta, exactly the precedent `table_name` (see
+    `_check_table_names`) and shared 033's dispatch-mechanism widen already
+    set. This function exists to produce 036 once and to reproduce it
+    byte-identically thereafter.
+    """
+    facts = [
+        RegistryFacts(
+            doc_type_code=r["doc_type_code"],
+            in_scope=r["stream"] != "CORPUS",
+            dispatch_mechanism=r["dispatch_mechanism"],
+            field_contract=r["field_contract"],
+            extraction_spec=r["extraction_spec"],
+        )
+        for r in canonical
+    ]
+    schemas = derive_document_schemas(facts)
+
+    out: list[str] = []
+    w = out.append
+    w("-- =============================================================================")
+    w("-- Shared migration 036 — the published schema catalogue, seeded.")
+    w("--")
+    w("-- GENERATED by scripts/gen_registry_seed.py from registry/document_types.csv")
+    w("-- and src/catalogue/document_schema.py. Tables: migration 035, read its")
+    w("-- header first — it states what these rows are and what they are NOT (they")
+    w("-- describe the tenant-facing export contract, not the Silver table).")
+    w("--")
+    w("-- Every field below traces to a loader or a registry grammar cell. Nothing")
+    w("-- here is written by hand or inferred from a column name.")
+    w("--")
+    w("-- DO NOT regenerate this file to fix drift — it is applied and checksum-")
+    w("-- pinned. Carry the delta in a NEW migration; see _write_schema_catalogue.")
+    w("-- =============================================================================")
+    w("")
+    w("INSERT INTO platform_ref.document_type_schema")
+    w("    (doc_type_code, schema_kind, provenance)")
+    w("VALUES")
+    w(",\n".join(
+        f"    ({q(s.doc_type_code)}, {q(s.schema_kind.value)}, {q(s.provenance.value)})"
+        for s in schemas
+    ))
+    w(";")
+    w("")
+
+    rows: list[str] = []
+    for sch in schemas:
+        for f in sch.fields:
+            rows.append(
+                f"    ({q(sch.doc_type_code)}, {f.ordinal}, {q(f.name)}, "
+                f"{q(f.scope.value)}, {q(f.data_type)}, "
+                f"{'TRUE' if f.required else 'FALSE'}, "
+                f"{q(f.source_label) if f.source_label is not None else 'NULL'})"
+            )
+    w("INSERT INTO platform_ref.document_type_field")
+    w("    (doc_type_code, ordinal, field_name, scope, data_type, required,")
+    w("     source_label)")
+    w("VALUES")
+    w(",\n".join(rows))
+    w(";")
+    w("")
+
+    return _emit(SCHEMA_CATALOGUE_PATH, "\n".join(out), force=force)
 
 
 def _check_dispatch_mechanism(canonical: list[dict[str, str]]) -> list[str]:
@@ -512,7 +664,13 @@ def _check_table_names(canonical: list[dict[str, str]]) -> list[str]:
     return errors
 
 
-def main() -> int:
+def main(argv: list[str] | None = None) -> int:
+    # `--force` overrides _emit's refusal to rewrite an existing generated file
+    # whose content would change. Read _emit's docstring before using it: three
+    # of these files are applied, pinned, and legitimately differ from what a
+    # fresh generation produces.
+    force = "--force" in (argv if argv is not None else sys.argv[1:])
+
     rows = list(csv.DictReader(CSV_PATH.open()))
 
     umbrella = [r for r in rows if UMBRELLA_MARKER in r["notes"]]
@@ -612,21 +770,31 @@ def main() -> int:
     w("ON CONFLICT (register_ref, doc_type_code) DO NOTHING;")
     w("")
 
-    OUT_PATH.write_text("\n".join(out))
-    _write_cadence(canonical)
-    _write_field_contract(canonical)
-    _write_extraction_spec(canonical)
-    _write_dispatch_mechanism(canonical)
+    # Every writer is attempted before any refusal is reported, so a pinned
+    # file that would change does not stop a genuinely new one being written.
+    write_errors = (
+        _emit(OUT_PATH, "\n".join(out), force=force)
+        + _write_cadence(canonical, force=force)
+        + _write_field_contract(canonical, force=force)
+        + _write_extraction_spec(canonical, force=force)
+        + _write_dispatch_mechanism(canonical, force=force)
+        + _write_schema_catalogue(canonical, force=force)
+    )
+    if write_errors:
+        for e in write_errors:
+            print(f"ERROR: {e}", file=sys.stderr)
+        return 1
 
     n_contracts = sum(1 for r in canonical if r["field_contract"])
     n_specs = sum(1 for r in canonical if r["extraction_spec"])
     n_tables = sum(1 for r in canonical if r["table_name"])
     n_mechanisms = sum(1 for r in canonical if r["dispatch_mechanism"])
-    print(f"wrote {OUT_PATH.relative_to(ROOT)}")
-    print(f"wrote {CADENCE_PATH.relative_to(ROOT)}")
-    print(f"wrote {CONTRACT_PATH.relative_to(ROOT)}")
-    print(f"wrote {EXTRACTION_SPEC_PATH.relative_to(ROOT)}")
-    print(f"wrote {DISPATCH_MECHANISM_PATH.relative_to(ROOT)}")
+    for path in (
+        OUT_PATH, CADENCE_PATH, CONTRACT_PATH, EXTRACTION_SPEC_PATH,
+        DISPATCH_MECHANISM_PATH, SCHEMA_CATALOGUE_PATH,
+    ):
+        verb = "sealed" if path in KNOWN_SEALED else "wrote"
+        print(f"{verb} {path.relative_to(ROOT)}")
     print(f"  {len(rows)} register refs")
     print(f"  {n_contracts} field contract(s)")
     print(f"  {n_specs} extraction spec(s)")

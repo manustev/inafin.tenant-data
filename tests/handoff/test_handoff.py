@@ -39,7 +39,8 @@ async def _ingest(
     csv_bytes: bytes,
 ):
     receipt = await bronze.receive(
-        tenant.ctx, entity_id=entity_id, data=csv_bytes, filename="purchases.csv"
+        tenant.ctx, entity_id=entity_id, data=csv_bytes, filename="purchases.csv",
+        document_type="BILL_OF_ENTRY",
     )
     manifest = await promoter.promote_transaction_documents(
         tenant.ctx,
@@ -380,7 +381,10 @@ async def test_invalid_file_is_quarantined_not_promoted(
         b"2026-04-15,INNSA1,1,84713010,10,1000,10000,18\n"
     )
 
-    receipt = await bronze.receive(tenant_a.ctx, entity_id=entity_id, data=bad, filename="bad.csv")
+    receipt = await bronze.receive(
+        tenant_a.ctx, entity_id=entity_id, data=bad, filename="bad.csv",
+        document_type="BILL_OF_ENTRY",
+    )
     with pytest.raises(ValidationRejected, match="overseas counterparty"):
         await promoter.promote_transaction_documents(
             tenant_a.ctx,
@@ -428,8 +432,14 @@ async def test_identical_bytes_in_two_tenants_both_succeed(bronze, tenant_a, ten
     """
     shared = bill_of_entry_csv(be_number="PINV-SHARED-TEMPLATE")
 
-    r1 = await bronze.receive(tenant_a.ctx, entity_id=uuid.uuid4(), data=shared, filename="t.csv")
-    r2 = await bronze.receive(tenant_b.ctx, entity_id=uuid.uuid4(), data=shared, filename="t.csv")
+    r1 = await bronze.receive(
+        tenant_a.ctx, entity_id=uuid.uuid4(), data=shared, filename="t.csv",
+        document_type="BILL_OF_ENTRY",
+    )
+    r2 = await bronze.receive(
+        tenant_b.ctx, entity_id=uuid.uuid4(), data=shared, filename="t.csv",
+        document_type="BILL_OF_ENTRY",
+    )
 
     assert r1.deduplicated is False
     assert r2.deduplicated is False, "cross-tenant dedup collision — this is a disclosure"
@@ -440,8 +450,14 @@ async def test_identical_bytes_in_two_tenants_both_succeed(bronze, tenant_a, ten
 
 async def test_same_bytes_twice_in_one_tenant_dedups(bronze, tenant_a, entity_id) -> None:
     data = bill_of_entry_csv(be_number="PINV-DEDUP")
-    first = await bronze.receive(tenant_a.ctx, entity_id=entity_id, data=data, filename="t.csv")
-    second = await bronze.receive(tenant_a.ctx, entity_id=entity_id, data=data, filename="t.csv")
+    first = await bronze.receive(
+        tenant_a.ctx, entity_id=entity_id, data=data, filename="t.csv",
+        document_type="BILL_OF_ENTRY",
+    )
+    second = await bronze.receive(
+        tenant_a.ctx, entity_id=entity_id, data=data, filename="t.csv",
+        document_type="BILL_OF_ENTRY",
+    )
     assert second.deduplicated is True
     assert second.ingest_id == first.ingest_id
 
@@ -456,7 +472,10 @@ async def test_bronze_object_is_immutable(bronze, object_store, tenant_a, entity
     *specific version* is refused, and that the bytes remain readable.
     """
     data = bill_of_entry_csv(be_number="PINV-WORM")
-    receipt = await bronze.receive(tenant_a.ctx, entity_id=entity_id, data=data, filename="t.csv")
+    receipt = await bronze.receive(
+        tenant_a.ctx, entity_id=entity_id, data=data, filename="t.csv",
+        document_type="BILL_OF_ENTRY",
+    )
 
     head = object_store._client.head_object(Bucket=receipt.bucket, Key=receipt.object_key)
     version_id = head["VersionId"]
@@ -488,6 +507,7 @@ async def test_one_tenants_artefact_is_invisible_to_another(
         entity_id=entity_id,
         data=bill_of_entry_csv(be_number="PINV-CROSSCHECK"),
         filename="t.csv",
+        document_type="BILL_OF_ENTRY",
     )
 
     # POSITIVE CONTROL: the artefact genuinely exists in acme.

@@ -77,6 +77,21 @@ class Settings(BaseSettings):
     # e.g. API_TENANT_TOKENS='{"dev-acme-token": "acme"}'.
     api_tenant_tokens: dict[str, str] = Field(default_factory=dict)
 
+    # "static_token" (default) or "none" — the explicit off switch, same
+    # named-mode idiom as virus_scan_provider/source_data_mode: a string a
+    # deployment sets on purpose, never a bool that silently defaults to
+    # "safe" or "off" depending which way someone reads it. "none" builds
+    # `NoAuth` instead of `StaticTokenAuth` — see that class's docstring for
+    # exactly what it does and does not protect. This exists for local dev
+    # only; nothing about it is meant to reach a shared or deployed
+    # environment, and src/api/app.py logs an unmissable warning on startup
+    # whenever it is active.
+    auth_mode: str = "static_token"
+
+    # Which tenant AUTH_MODE=none resolves every unauthenticated request to.
+    # Ignored entirely when auth_mode is "static_token".
+    dev_tenant_slug: str = "acme"
+
     # --- OCR fallback (src/extraction/ocr.py) ---
     # Off by default — `paddleocr`/`paddlepaddle` are an optional dependency
     # group (`pip install .[ocr]`), not a core one, and `PaddleOCR()` pulls

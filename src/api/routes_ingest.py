@@ -10,11 +10,9 @@ parameter — it is business data, the customer's customer
 from __future__ import annotations
 
 import uuid
-from typing import cast
 
 import psycopg
 from fastapi import APIRouter, Form, HTTPException, UploadFile
-from psycopg import sql
 
 from src.api.deps import (
     BatchPublisherDep,
@@ -26,23 +24,25 @@ from src.api.deps import (
     TenantDep,
 )
 from src.api.schemas import (
+    BatchUploadItem,
+    BatchUploadResponse,
     RowRejectionDetail,
     StatusResponse,
     TriggerRequest,
     TriggerResponse,
     UploadResponse,
 )
-from src.core.errors import IntakeRejected, ValidationRejected
-from src.core.tenant import Role
-from src.dispatch.content_format import infer_content_format
-from src.dispatch.router import (
-    MissingDispatchFieldError,
-    NoDispatchMechanismError,
-    dispatch_load,
-)
-from src.extraction.dispatch import UnknownExtractorError
+from src.core.errors import IntakeRejected
+from src.dispatch.trigger import record_and_dispatch_trigger
 
 router = APIRouter(prefix="/artefacts", tags=["ingest"])
+
+#: A batch call is one multipart request holding N independent uploads. Bounded
+#: so one request cannot hold the connection open indefinitely or let a caller
+#: use this route to bypass ordinary rate limiting one request at a time — not
+#: because any single file is more expensive here than through the singular
+#: route, which has no cap of its own beyond `check_file`'s per-file size limit.
+MAX_BATCH_FILES = 100
 
 
 @router.post("", response_model=UploadResponse, status_code=201)
@@ -51,10 +51,23 @@ async def upload_artefact(
     bronze: BronzeServiceDep,
     file: UploadFile,
     entity_id: uuid.UUID = Form(...),
-    document_type: str = Form("PURCHASE_INVOICE"),
+    document_type: str = Form(...),
 ) -> UploadResponse:
     """Runs the real intake gate (`BronzeIngestionService.receive`) — file-check,
-    hash, dedup, virus scan, PUT, ledger INSERT. Not a stub."""
+    document-type check, hash, dedup, virus scan, PUT, ledger INSERT. Not a stub.
+
+    `document_type` has no default — see `BronzeIngestionService.receive`'s
+    docstring for why a silently-defaulted, unvalidated value was itself the
+    bug this closed. A caller must declare what they are sending; FastAPI
+    turns a missing field into a 422 before this handler body ever runs.
+
+    `received_from="PORTAL"` names this specific route as the source, distinct
+    from the default `BronzeIngestionService.receive` otherwise applies. This
+    is the only provenance the ledger records for how an artefact arrived —
+    worth keeping accurate now that a second door (a source connector pulling
+    from GSTN/ICEGATE/etc, `src/connectors/`) exists and will write through
+    the same service with its own `received_from` value once it has a caller.
+    """
     data = await file.read()
     try:
         receipt = await bronze.receive(
@@ -63,6 +76,7 @@ async def upload_artefact(
             data=data,
             document_type=document_type,
             filename=file.filename,
+            received_from="PORTAL",
         )
     except IntakeRejected as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -73,6 +87,76 @@ async def upload_artefact(
         object_key=receipt.object_key,
         size_bytes=receipt.size_bytes,
         deduplicated=receipt.deduplicated,
+    )
+
+
+@router.post("/batch", response_model=BatchUploadResponse, status_code=200)
+async def upload_artefact_batch(
+    tenant: TenantDep,
+    bronze: BronzeServiceDep,
+    files: list[UploadFile],
+    entity_id: uuid.UUID = Form(...),
+    document_type: str = Form(...),
+) -> BatchUploadResponse:
+    """Upload several files in one request, all the SAME `document_type` and
+    `entity_id` — a tenant dropping twelve months of one register export, or
+    a batch of BILL_OF_ENTRY PDFs, is the ordinary shape this exists for.
+
+    A MIXED-TYPE batch is deliberately not this route's job: `document_type`
+    is a single form field, not a parallel array keyed to `files`, because a
+    parallel-array multipart shape is exactly the kind of API surface that
+    silently misaligns (file 3 gets file 4's type) with nothing but manual
+    testing to catch it. A portal batching several document TYPES makes
+    several calls to this route, one per type — each one still gets its own
+    independent per-file outcome below.
+
+    EVERY FILE IS INDEPENDENT. One bad file (wrong extension, a virus hit, an
+    out-of-scope `document_type`) does not fail the request or the files
+    around it — `BronzeIngestionService.receive` already treats each upload
+    as its own unit of work, and this route does the same at the batch grain:
+    always 200, `items` carries the real per-file outcome. That is the same
+    "the body carries the outcome" shape `dispatch_load`'s PARTIAL status
+    already uses for a register upload where some ROWS succeed and some fail
+    — this is that principle one level up, at file grain instead of row grain.
+    """
+    if not files:
+        raise HTTPException(status_code=422, detail="no files in batch")
+    if len(files) > MAX_BATCH_FILES:
+        raise HTTPException(
+            status_code=422,
+            detail=f"batch of {len(files)} files exceeds the {MAX_BATCH_FILES}-file limit",
+        )
+
+    items: list[BatchUploadItem] = []
+    for file in files:
+        data = await file.read()
+        try:
+            receipt = await bronze.receive(
+                tenant,
+                entity_id=entity_id,
+                data=data,
+                document_type=document_type,
+                filename=file.filename,
+                received_from="PORTAL",
+            )
+        except IntakeRejected as exc:
+            items.append(BatchUploadItem(filename=file.filename, ok=False, error=str(exc)))
+            continue
+        items.append(
+            BatchUploadItem(
+                filename=file.filename,
+                ok=True,
+                ingest_id=receipt.ingest_id,
+                bucket=receipt.bucket,
+                object_key=receipt.object_key,
+                size_bytes=receipt.size_bytes,
+                deduplicated=receipt.deduplicated,
+            )
+        )
+
+    accepted = sum(1 for i in items if i.ok)
+    return BatchUploadResponse(
+        accepted_count=accepted, rejected_count=len(items) - accepted, items=items,
     )
 
 
@@ -96,65 +180,30 @@ async def trigger_load(
     `src/api/app.py`'s docstring for why calling it here does not reopen
     "the upsert must NOT go behind an API".
     """
-    async with pool.transaction(tenant, Role.INGEST) as conn:
-        try:
-            row = await (
-                await conn.execute(
-                    sql.SQL(
-                        "INSERT INTO {}.load_trigger (ingest_id, doc_type_code)"
-                        " VALUES (%s, %s) RETURNING id, ingest_id, doc_type_code, requested_at"
-                    ).format(sql.Identifier(tenant.bronze_schema)),
-                    (ingest_id, body.doc_type_code),
-                )
-            ).fetchone()
-        except psycopg.errors.ForeignKeyViolation as exc:
-            raise HTTPException(
-                status_code=404, detail=f"no artefact {ingest_id} for this tenant"
-            ) from exc
-
-    assert row is not None
-    trigger_id, resolved_ingest_id, raw_doc_type_code, requested_at = row
-    doc_type_code = cast(str, raw_doc_type_code)
-
-    entry = await bronze.ledger_entry(tenant, ingest_id)
-
-    def _recorded_only(status: str) -> TriggerResponse:
-        return TriggerResponse(
-            trigger_id=trigger_id, ingest_id=resolved_ingest_id, doc_type_code=doc_type_code,
-            requested_at=requested_at, status=status,
-        )
-
     try:
-        content_format = infer_content_format(entry.original_filename)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-
-    data = await bronze.fetch(tenant, ingest_id)
-    try:
-        outcome = await dispatch_load(
-            tenant, pool,
-            ingest_id=ingest_id, entity_id=entry.entity_id, doc_type_code=doc_type_code,
-            data=data, content_format=content_format,
+        result = await record_and_dispatch_trigger(
+            pool, tenant, bronze,
+            ingest_id=ingest_id, doc_type_code=body.doc_type_code,
             period_start=body.period_start, period_end=body.period_end, gstin=body.gstin,
             store=store, reader=pdf_text_reader, publisher=batch_publisher,
         )
-    except NoDispatchMechanismError:
-        # A real, honest outcome, not an error: this doc_type_code has no
-        # dispatch_mechanism yet (unbuilt loader, or a Stream A polled type
-        # that was never meant to be upload-triggered). The trigger is still
-        # durably recorded above.
-        return _recorded_only("UNROUTED")
-    except MissingDispatchFieldError as exc:
+    except psycopg.errors.ForeignKeyViolation as exc:
+        raise HTTPException(
+            status_code=404, detail=f"no artefact {ingest_id} for this tenant"
+        ) from exc
+    except ValueError as exc:
+        # Covers both MissingDispatchFieldError and infer_content_format's
+        # plain ValueError (an unrecognised extension) — both are the caller
+        # having asked for something this trigger cannot satisfy, same 422
+        # this route always gave each. UnknownExtractorError is also a
+        # ValueError subclass (src/extraction/dispatch.py), so it lands here
+        # too rather than needing its own except clause.
         raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except UnknownExtractorError as exc:
-        raise HTTPException(status_code=422, detail=str(exc)) from exc
-    except ValidationRejected:
-        return _recorded_only("QUARANTINED")
 
     return TriggerResponse(
-        trigger_id=trigger_id, ingest_id=resolved_ingest_id, doc_type_code=doc_type_code,
-        requested_at=requested_at, status=outcome.status, mechanism=outcome.mechanism,
-        batch_id=outcome.batch_id,
+        trigger_id=result.trigger_id, ingest_id=result.ingest_id,
+        doc_type_code=result.doc_type_code, requested_at=result.requested_at,
+        status=result.status, mechanism=result.mechanism, batch_id=result.batch_id,
     )
 
 

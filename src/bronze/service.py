@@ -24,9 +24,10 @@ that records a conclusion we reached later.
 
 **Intake gate, updated ordering:**
 
-    file-check -> hash -> dedup check -> virus scan -> PUT object -> INSERT ledger row
+    file-check -> document-type check -> hash -> dedup check -> virus scan
+        -> PUT object -> INSERT ledger row
 
-Two stages were added ahead of the original `hash -> dedup -> PUT -> INSERT`
+Three stages were added ahead of the original `hash -> dedup -> PUT -> INSERT`
 (see `src/bronze/filecheck.py` and `src/bronze/scan.py` for why each exists as
 its own module). Both run BEFORE anything is written to the object store,
 because Object Lock makes a stored object unmodifiable — a file that fails
@@ -50,6 +51,7 @@ from psycopg import sql
 
 from src.bronze.filecheck import ALLOWED_EXTENSIONS, DEFAULT_MAX_UPLOAD_BYTES, check_file
 from src.bronze.scan import NullScanner, VirusScanPort
+from src.catalogue.pin import ensure_schema_pin
 from src.core.errors import IntakeRejected
 from src.core.pool import TenantScopedPool
 from src.core.tenant import Role, TenantContext
@@ -111,13 +113,50 @@ class BronzeIngestionService:
         self._max_upload_bytes = max_upload_bytes
         self._allowed_extensions = allowed_extensions
 
+    async def _check_document_type_in_scope(
+        self, ctx: TenantContext, document_type: str
+    ) -> None:
+        """Refuse a `document_type` the registry does not recognise as
+        in-scope, before it becomes an artefact.
+
+        Reads inside the tenant's own `SET LOCAL ROLE t_<slug>_ingest`
+        transaction — `platform_ref.document_type` is reachable there through
+        `platform_ref_reader` group membership (shared migration 040), the
+        same mechanism `src/catalogue/pin.py` uses for the schema catalogue.
+        No ambient `app_login` read is needed or used here.
+
+        Two failure shapes, reported distinctly because they mean different
+        things to whoever reads the 422: a code that is not a row at all
+        (typo, or one of the five retired Phase-1 codes the ledger's FK still
+        accepts but the registry no longer lists) versus a code that IS a row
+        but is deliberately out of scope (CORPUS-owned, or withdrawn).
+        """
+        async with self._pool.transaction(ctx, Role.INGEST) as conn:
+            row = await (
+                await conn.execute(
+                    "SELECT in_scope FROM platform_ref.document_type"
+                    " WHERE doc_type_code = %s",
+                    (document_type,),
+                )
+            ).fetchone()
+        if row is None:
+            raise IntakeRejected(
+                f"document_type {document_type!r} is not a recognised document "
+                f"type"
+            )
+        if not row[0]:
+            raise IntakeRejected(
+                f"document_type {document_type!r} is out of scope for this "
+                f"platform"
+            )
+
     async def receive(
         self,
         ctx: TenantContext,
         *,
         entity_id: uuid.UUID,
         data: bytes,
-        document_type: str = "PURCHASE_INVOICE",
+        document_type: str,
         source_stream: str = "B",
         filename: str | None = None,
         received_from: str = "upload",
@@ -143,6 +182,9 @@ class BronzeIngestionService:
         if not check.ok:
             logger.warning("bronze intake refused %s for %s: %s", filename, ctx, check.reason)
             raise IntakeRejected(check.reason)
+
+        # --- Document-type check, before this becomes an artefact -----------
+        await self._check_document_type_in_scope(ctx, document_type)
 
         content_hash = hashlib.sha256(data).digest()
         bronze = ctx.bronze_schema
@@ -232,6 +274,16 @@ class BronzeIngestionService:
                 ingest_id=winner[0], content_hash=content_hash, bucket=winner[1],
                 object_key=winner[2], size_bytes=winner[3], deduplicated=True,
             )
+
+        # The schema this tenant was handed for this document type, pinned on
+        # their first upload of it (src/catalogue/pin.py, tenant migration
+        # 028). Best effort and after the ledger row on purpose: the artefact
+        # is already received and the upload must not fail because the
+        # catalogue is misconfigured.
+        await ensure_schema_pin(
+            self._pool, ctx, doc_type_code=document_type,
+            ingest_id=ingest_id, store=self._store,
+        )
 
         logger.info("bronze received %s for %s (%d bytes)", ingest_id, ctx, len(data))
         return ArtefactReceipt(

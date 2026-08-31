@@ -1,0 +1,48 @@
+-- =============================================================================
+-- Shared migration 038 — the USAGE grant migration 030 needed and never had.
+--
+-- A REAL, LATENT BUG, found 2026-08-24 while gating the schema catalogue. Not
+-- introduced by that work — it has been true since 030 was applied on
+-- 2026-08-14, and it is worth stating plainly because it means a published
+-- contract did not do what it said.
+--
+-- Migration 030 grants app_login SELECT (and, for the onboarding tables,
+-- INSERT/UPDATE) on twenty-one platform_ref tables. Every one of those grants
+-- was, and is, correctly recorded in information_schema.role_table_grants —
+-- which is exactly why the seventh session's verification, which queried that
+-- view, saw nothing wrong. But a table privilege is not reachable without
+-- USAGE on the schema that contains it, and app_login was never granted USAGE
+-- on platform_ref:
+--
+--     SELECT count(*) FROM platform_ref.document_type;
+--     ERROR:  permission denied for schema platform_ref
+--
+-- ...from a bare app_login connection, which is precisely the state
+-- inafin-api is in when it resolves which tenant a request belongs to. Every
+-- ambient read AND write 030 intended has been failing. `app.v1_tenant_
+-- directory` works and always did, because 001_app.sql line 29 grants USAGE on
+-- schema `app` to PUBLIC — which is why this went unnoticed: the first step of
+-- tenant resolution worked, and only the steps after it did not.
+--
+-- WHY THE TABLE-BY-TABLE VERIFICATION MISSED IT. Checking
+-- role_table_grants proves a GRANT statement ran. It does not prove the
+-- privilege is USABLE. The catalogue's own gate
+-- (test_schema_catalogue.py::test_app_login_can_read_the_catalogue_and_cannot_
+-- write_it) is written the other way round — it opens a real bare app_login
+-- connection and issues a real SELECT — and that is what caught this.
+--
+-- WHY THIS IS SAFE, AND NOT A WIDENING OF THE INVARIANT-#2 EXCEPTION.
+-- USAGE on a schema confers NOTHING on its own. It is the permission to
+-- resolve a name inside the schema; every object still requires its own
+-- privilege, and app_login holds privileges on exactly the tables 030, 037 and
+-- this file name — nothing else in platform_ref, and nothing at all in any
+-- t_<slug>_bronze/silver/gold schema. This makes the existing, deliberate,
+-- audited exception WORK. It does not enlarge it.
+--
+-- Nor does it contend on the ACL row that 001_app.sql's header warns about:
+-- that warning is against granting platform_ref per tenant, inside the
+-- per-tenant fan-out (invariant 8). This is one grant, once, to one role, in a
+-- shared migration.
+-- =============================================================================
+
+GRANT USAGE ON SCHEMA platform_ref TO app_login;

@@ -16,8 +16,10 @@ import subprocess
 import sys
 import uuid
 
+import psycopg
 import pytest
 from fastapi.testclient import TestClient
+from psycopg import sql
 from tests.conformance.conftest import TOKEN_ACME, RecordingPublisher
 from tests.conftest import SeededTenant
 
@@ -326,3 +328,149 @@ def test_trigger_is_422_when_a_required_field_is_missing(
         json={"doc_type_code": "TRIAL_BALANCE"},
     )
     assert trigger.status_code == 422, trigger.text
+
+
+def test_upload_via_the_portal_route_is_provenanced_portal(
+    api_client: TestClient, tenant_a: SeededTenant,
+    admin: psycopg.Connection[tuple[object, ...]],
+) -> None:
+    """`received_from` distinguishes how an artefact arrived. Every other
+    `BronzeIngestionService.receive` caller defaults to `"upload"`; this HTTP
+    route is the one going through the portal, and now says so — worth
+    getting right before a second caller (a source connector pulling from
+    GSTN/ICEGATE, `src/connectors/`) starts writing through the same service
+    with its own value and this column becomes load-bearing."""
+    upload = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={"entity_id": str(tenant_a.entity_id), "document_type": "BILL_OF_ENTRY"},
+        files={"file": ("export.csv", b"doc_number\nPROV-1\n", "text/csv")},
+    )
+    assert upload.status_code == 201, upload.text
+    ingest_id = upload.json()["ingest_id"]
+
+    row = admin.execute(
+        sql.SQL("SELECT received_from FROM {}.artefact_ledger WHERE ingest_id = %s").format(
+            sql.Identifier(tenant_a.ctx.bronze_schema)
+        ),
+        (ingest_id,),
+    ).fetchone()
+    assert row is not None and row[0] == "PORTAL"
+
+
+def test_upload_with_an_unrecognised_document_type_is_422(
+    api_client: TestClient, tenant_a: SeededTenant,
+) -> None:
+    """The registry gate (`BronzeIngestionService._check_document_type_in_scope`)
+    reached through the real route, not just the service directly — the file
+    must never reach the object store or the ledger for a type the registry
+    does not recognise as in-scope."""
+    resp = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={
+            "entity_id": str(tenant_a.entity_id),
+            "document_type": "THIS_TYPE_DOES_NOT_EXIST",
+        },
+        files={"file": ("export.csv", b"doc_number\nX\n", "text/csv")},
+    )
+    assert resp.status_code == 422, resp.text
+    assert "not a recognised document type" in resp.json()["detail"]
+
+
+def test_upload_with_no_document_type_is_422(
+    api_client: TestClient, tenant_a: SeededTenant,
+) -> None:
+    """No default remains — a caller must declare what they are sending.
+    FastAPI's own missing-required-field 422, not this codebase's."""
+    resp = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={"entity_id": str(tenant_a.entity_id)},
+        files={"file": ("export.csv", b"doc_number\nX\n", "text/csv")},
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_batch_upload_all_files_succeed(
+    api_client: TestClient, tenant_a: SeededTenant,
+) -> None:
+    resp = api_client.post(
+        "/artefacts/batch",
+        headers=AUTH,
+        data={"entity_id": str(tenant_a.entity_id), "document_type": "BILL_OF_ENTRY"},
+        files=[
+            ("files", ("a.csv", b"doc_number\nBATCH-A\n", "text/csv")),
+            ("files", ("b.csv", b"doc_number\nBATCH-B\n", "text/csv")),
+            ("files", ("c.csv", b"doc_number\nBATCH-C\n", "text/csv")),
+        ],
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["accepted_count"] == 3
+    assert body["rejected_count"] == 0
+    assert len(body["items"]) == 3
+    assert all(item["ok"] for item in body["items"])
+    assert len({item["ingest_id"] for item in body["items"]}) == 3, (
+        "each file must get its own ingest_id"
+    )
+
+
+def test_batch_upload_one_bad_file_does_not_fail_the_others(
+    api_client: TestClient, tenant_a: SeededTenant,
+) -> None:
+    """A wrong extension refuses only its own file — the two good ones next
+    to it must still succeed. Proves the batch is file-independent, not a
+    single all-or-nothing unit."""
+    resp = api_client.post(
+        "/artefacts/batch",
+        headers=AUTH,
+        data={"entity_id": str(tenant_a.entity_id), "document_type": "BILL_OF_ENTRY"},
+        files=[
+            ("files", ("good1.csv", b"doc_number\nBATCH-GOOD-1\n", "text/csv")),
+            ("files", ("bad.exe", b"whatever", "application/octet-stream")),
+            ("files", ("good2.csv", b"doc_number\nBATCH-GOOD-2\n", "text/csv")),
+        ],
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["accepted_count"] == 2
+    assert body["rejected_count"] == 1
+
+    by_name = {item["filename"]: item for item in body["items"]}
+    assert by_name["good1.csv"]["ok"] is True
+    assert by_name["good2.csv"]["ok"] is True
+    assert by_name["bad.exe"]["ok"] is False
+    assert "extension" in by_name["bad.exe"]["error"]
+
+
+def test_batch_upload_with_no_files_is_422(
+    api_client: TestClient, tenant_a: SeededTenant,
+) -> None:
+    resp = api_client.post(
+        "/artefacts/batch",
+        headers=AUTH,
+        data={"entity_id": str(tenant_a.entity_id), "document_type": "BILL_OF_ENTRY"},
+        files=[],
+    )
+    assert resp.status_code == 422, resp.text
+
+
+def test_batch_upload_is_provenanced_portal_per_file(
+    api_client: TestClient, tenant_a: SeededTenant,
+    admin: psycopg.Connection[tuple[object, ...]],
+) -> None:
+    resp = api_client.post(
+        "/artefacts/batch",
+        headers=AUTH,
+        data={"entity_id": str(tenant_a.entity_id), "document_type": "BILL_OF_ENTRY"},
+        files=[("files", ("a.csv", b"doc_number\nBATCH-PROV\n", "text/csv"))],
+    )
+    ingest_id = resp.json()["items"][0]["ingest_id"]
+    row = admin.execute(
+        sql.SQL("SELECT received_from FROM {}.artefact_ledger WHERE ingest_id = %s").format(
+            sql.Identifier(tenant_a.ctx.bronze_schema)
+        ),
+        (ingest_id,),
+    ).fetchone()
+    assert row is not None and row[0] == "PORTAL"

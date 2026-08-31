@@ -45,6 +45,25 @@ class StoredObject:
     retain_until: dt.datetime
 
 
+@dataclass(frozen=True, slots=True)
+class PublishedObject:
+    """A platform-published file. Deliberately NOT a `StoredObject`.
+
+    `StoredObject` carries `retain_until`, because everything it describes is
+    tenant evidence under a COMPLIANCE lock nobody may shorten. A published
+    schema or sample has no retention: it is expected to be superseded and may
+    legitimately be withdrawn. Reusing the same type would have forced a
+    meaningless `retain_until` onto these rows and quietly invited someone to
+    lock them.
+    """
+
+    bucket: str
+    key: str
+    version_id: str | None
+    content_hash: bytes
+    size_bytes: int
+
+
 class ObjectStorePort(Protocol):
     """Kept narrow so provisioning and ingestion can be tested without MinIO."""
 
@@ -58,6 +77,18 @@ class ObjectStorePort(Protocol):
     def put_silver(
         self, *, slug: str, doc_type: str, ingest_id: str, data: bytes, suffix: str,
         promoted_at: dt.datetime,
+    ) -> StoredObject: ...
+
+    def ensure_platform_bucket(self) -> str: ...
+
+    def put_platform_artifact(
+        self, *, release: str, kind: str, doc_type_code: str | None,
+        filename: str, data: bytes,
+    ) -> PublishedObject: ...
+
+    def put_schema_snapshot(
+        self, *, slug: str, release: str, doc_type_code: str, data: bytes,
+        pinned_at: dt.datetime,
     ) -> StoredObject: ...
 
     def get(self, *, bucket: str, key: str) -> bytes: ...
@@ -237,6 +268,141 @@ class S3ObjectStore:
             content_hash=digest,
             size_bytes=len(data),
             retain_until=retain_until,
+        )
+
+    # --- the platform bucket ------------------------------------------------
+    #
+    # ONE bucket for the whole platform, not one per tenant, and that is the
+    # opposite of every other bucket in this module for a reason that holds:
+    # the per-tenant rule exists because tenant data must never share a
+    # boundary with another tenant's. Published schemas and samples are the
+    # SAME BYTES FOR EVERYONE — identical reference material, no tenant's data
+    # in any of it. A bucket per tenant here would mean 1,000 copies of the
+    # same file and 1,000 places for a rollout to go half-finished.
+
+    def platform_bucket(self) -> str:
+        return f"{self._prefix}-platform"
+
+    def ensure_platform_bucket(self) -> str:
+        """Idempotent. Versioned, NOT Object-Lock'd — see migration 039.
+
+        Object Lock would make a bad sample permanent. Versioning is enabled
+        instead: it protects against an accidental overwrite or delete while
+        leaving a deliberate withdrawal possible.
+        """
+        bucket = self.platform_bucket()
+        try:
+            self._client.head_bucket(Bucket=bucket)
+        except ClientError as exc:
+            code = exc.response.get("Error", {}).get("Code", "")
+            if code not in {"404", "NoSuchBucket", "NotFound"}:
+                raise
+            self._client.create_bucket(Bucket=bucket)
+            logger.info("created platform bucket %s", bucket)
+
+        self._client.put_bucket_versioning(
+            Bucket=bucket,
+            VersioningConfiguration={"Status": "Enabled"},
+        )
+        # Same tolerated failure as ensure_bucket: MinIO rejects this S3-only
+        # call and is private by default. On AWS it MUST succeed.
+        try:
+            self._client.put_public_access_block(
+                Bucket=bucket,
+                PublicAccessBlockConfiguration={
+                    "BlockPublicAcls": True,
+                    "IgnorePublicAcls": True,
+                    "BlockPublicPolicy": True,
+                    "RestrictPublicBuckets": True,
+                },
+            )
+        except ClientError as exc:
+            logger.warning(
+                "public access block not applied to %s (%s) — expected on "
+                "MinIO; on AWS S3 this MUST succeed and should fail deployment",
+                bucket,
+                exc.response.get("Error", {}).get("Code", "unknown"),
+            )
+        return bucket
+
+    def put_platform_artifact(
+        self,
+        *,
+        release: str,
+        kind: str,
+        doc_type_code: str | None,
+        filename: str,
+        data: bytes,
+    ) -> PublishedObject:
+        """Publish one schema or sample file into a release.
+
+        The release is in the KEY, not only in S3's version history, because a
+        staged rollout needs v1 and v2 addressable at the same time — migration
+        039's header argues this at length. Re-publishing the same key is
+        allowed and creates a new S3 version; the caller records the returned
+        `version_id` so "which bytes did this tenant download" stays answerable.
+        """
+        bucket = self.ensure_platform_bucket()
+        scope = f"{doc_type_code}/" if doc_type_code else ""
+        key = f"{kind.lower()}/{release}/{scope}{filename}"
+        digest = hashlib.sha256(data).digest()
+
+        resp = self._client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=data,
+            ChecksumSHA256=base64.b64encode(digest).decode(),
+            Metadata={"release": release, "kind": kind},
+        )
+        return PublishedObject(
+            bucket=bucket,
+            key=key,
+            version_id=resp.get("VersionId"),
+            content_hash=digest,
+            size_bytes=len(data),
+        )
+
+    def put_schema_snapshot(
+        self,
+        *,
+        slug: str,
+        release: str,
+        doc_type_code: str,
+        data: bytes,
+        pinned_at: dt.datetime,
+    ) -> StoredObject:
+        """The tenant's own frozen copy of the schema they were handed.
+
+        Returns a `StoredObject`, not a `PublishedObject`, and the difference
+        is the point: this copy IS retained under the bucket's COMPLIANCE lock,
+        while the platform-side original is not. A published schema is
+        reference material that may be superseded or withdrawn; the copy handed
+        to a specific tenant on a specific date is a record of the contract
+        they were given, and if their data is ever disputed, what they were
+        told the format was becomes part of the answer.
+
+        The key carries the release rather than a date, because that is how a
+        caller looks it up — "what is this tenant's v1 SALES_REGISTER schema" —
+        and re-pinning the same release is idempotent by construction.
+        """
+        validate_slug(slug)
+        bucket = bucket_name(slug, self._prefix)
+        key = f"schema/{release}/{doc_type_code}.json"
+        digest = hashlib.sha256(data).digest()
+        retain_until = pinned_at + dt.timedelta(days=self._retention_days)
+
+        self._client.put_object(
+            Bucket=bucket,
+            Key=key,
+            Body=data,
+            ObjectLockMode="COMPLIANCE",
+            ObjectLockRetainUntilDate=retain_until,
+            ChecksumSHA256=base64.b64encode(digest).decode(),
+            Metadata={"tenant-slug": slug, "release": release},
+        )
+        return StoredObject(
+            bucket=bucket, key=key, content_hash=digest,
+            size_bytes=len(data), retain_until=retain_until,
         )
 
     def get(self, *, bucket: str, key: str) -> bytes:

@@ -58,7 +58,8 @@ async def test_a_quarantined_upload_is_visible_through_its_own_ingest_id(
         b"BE-OUTCOME-BAD,2026-04-15,INNSA1,1,84713010,10,1000,10000,18\n"
     )
     receipt = await bronze.receive(
-        tenant_a.ctx, entity_id=entity_id, data=bad, filename="bad.csv"
+        tenant_a.ctx, entity_id=entity_id, data=bad, filename="bad.csv",
+        document_type="BILL_OF_ENTRY",
     )
     with pytest.raises(ValidationRejected):
         await promoter.promote_transaction_documents(
@@ -87,7 +88,8 @@ async def test_a_fully_accepted_upload_is_visible_through_its_own_ingest_id(
         PURCHASE_REGISTER_SPEC, seed="A", overrides={"invoice_no": "PI-GATE-OK"}
     )
     receipt = await bronze.receive(
-        tenant_a.ctx, entity_id=entity_id, data=data, filename="good.csv"
+        tenant_a.ctx, entity_id=entity_id, data=data, filename="good.csv",
+        document_type="PURCHASE_REGISTER",
     )
     load_outcome = await RegisterLoader(app_pool, PURCHASE_REGISTER_SPEC).load(
         tenant_a.ctx, entity_id=entity_id, gstin=GSTIN, ingest_id=receipt.ingest_id,
@@ -126,7 +128,8 @@ async def test_a_partially_accepted_upload_is_visible_through_its_own_ingest_id(
     data = f"{header}\n{good_row}\n{bad_row}\n".encode()
 
     receipt = await bronze.receive(
-        tenant_a.ctx, entity_id=entity_id, data=data, filename="partial.csv"
+        tenant_a.ctx, entity_id=entity_id, data=data, filename="partial.csv",
+        document_type="PURCHASE_REGISTER",
     )
     await RegisterLoader(app_pool, PURCHASE_REGISTER_SPEC).load(
         tenant_a.ctx, entity_id=entity_id, gstin=GSTIN, ingest_id=receipt.ingest_id,

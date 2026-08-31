@@ -1,0 +1,33 @@
+-- =============================================================================
+-- Tenant migration 029 — withdraw {{bronze}}.v1_schema_pin.
+--
+-- Migration 028 (one migration ago, same session) created this view as the
+-- "latest row wins" read over schema_pin, and told callers to use it rather
+-- than re-deriving the tie-break. The view is correct; it is also
+-- UNREACHABLE, and that was found by a test rather than by reading:
+--
+--     psycopg.errors.InsufficientPrivilege: permission denied for view
+--     v1_schema_pin
+--
+-- WHY IT CANNOT WORK. `app.apply_tenant_grants` (001_app.sql) grants Bronze
+-- objects with `c.relkind = 'r'` — ORDINARY TABLES ONLY. Silver has a second
+-- loop for `relkind = 'v' AND relname LIKE 'v1_%'`; Bronze has no such loop,
+-- because Bronze has never had a read-contract view. And a hand-written GRANT
+-- in this migration would not survive either: step 1 of apply_tenant_grants is
+-- `REVOKE ALL ON ALL TABLES IN SCHEMA`, which includes views, re-asserted on
+-- every provision and every migrate.
+--
+-- WHY NOT ADD THE BRONZE VIEW LOOP INSTEAD. That changes the isolation grant
+-- matrix for every tenant and every role, permanently, to serve one internal
+-- helper. The Silver `v1_` views are a PUBLISHED READ CONTRACT for
+-- inafinplatform/v2 (ARCHITECTURE.md 2.4) — that is what earned them a loop.
+-- A convenience view over a Bronze bookkeeping table is not that, and widening
+-- a boundary this deliberate for this little is the wrong trade.
+--
+-- The DISTINCT ON is now four lines inside `src/catalogue/pin.py:current_pin`,
+-- which was already the single place every caller goes through — so the "do
+-- not re-derive the tie-break yourself" rule 028 wanted is preserved by having
+-- exactly one implementation, just in Python rather than in SQL.
+-- =============================================================================
+
+DROP VIEW IF EXISTS {{bronze}}.v1_schema_pin;

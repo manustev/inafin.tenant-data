@@ -55,6 +55,13 @@ def _patch_output_paths(monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path)
     monkeypatch.setattr(gen, "CONTRACT_PATH", tmp_path / "009_out.sql")
     monkeypatch.setattr(gen, "EXTRACTION_SPEC_PATH", tmp_path / "016_out.sql")
     monkeypatch.setattr(gen, "DISPATCH_MECHANISM_PATH", tmp_path / "017_out.sql")
+    monkeypatch.setattr(gen, "SCHEMA_CATALOGUE_PATH", tmp_path / "036_out.sql")
+    # KNOWN_SEALED is keyed by the REAL path objects, so once the paths above
+    # are redirected nothing matches it and every writer takes the ordinary
+    # write branch — which is what these tests want to exercise. Cleared
+    # anyway, so that a future entry added there cannot silently turn one of
+    # these assertions into a no-op.
+    monkeypatch.setattr(gen, "KNOWN_SEALED", {})
 
 
 def test_a_malformed_extraction_spec_cell_is_rejected_at_generation_time(

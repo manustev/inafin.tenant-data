@@ -54,6 +54,7 @@ async def test_a_flagged_file_is_refused_and_never_stored(
         await gated.receive(
             tenant_a.ctx, entity_id=entity_id,
             data=b"doc_number\nX\n", filename="dirty.csv",
+            document_type="PURCHASE_REGISTER",
         )
 
     count = admin.execute(
@@ -76,6 +77,7 @@ async def test_a_clean_file_still_passes_through_the_gate(
     gated = BronzeIngestionService(app_pool, object_store, scanner=NullScanner())
     receipt = await gated.receive(
         tenant_a.ctx, entity_id=entity_id, data=b"doc_number\nX\n", filename="clean.csv",
+        document_type="PURCHASE_REGISTER",
     )
     assert receipt.deduplicated is False
 
@@ -97,4 +99,5 @@ async def test_a_disallowed_extension_never_reaches_the_scanner(
     with pytest.raises(IntakeRejected, match="extension"):
         await gated.receive(
             tenant_a.ctx, entity_id=entity_id, data=b"whatever", filename="a.exe",
+            document_type="PURCHASE_REGISTER",
         )

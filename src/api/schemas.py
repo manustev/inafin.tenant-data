@@ -22,6 +22,33 @@ class UploadResponse(BaseModel):
     deduplicated: bool
 
 
+class BatchUploadItem(BaseModel):
+    """One file's outcome within a batch upload. `ok` is the field a caller
+    branches on; `error` mirrors `IntakeRejected`'s message verbatim (same
+    text the single-file route returns as its 422 `detail`) so a batch and a
+    single upload report an identical reason for an identical failure."""
+
+    filename: str | None
+    ok: bool
+    ingest_id: uuid.UUID | None = None
+    bucket: str | None = None
+    object_key: str | None = None
+    size_bytes: int | None = None
+    deduplicated: bool | None = None
+    error: str | None = None
+
+
+class BatchUploadResponse(BaseModel):
+    """Always 200, never 201 — a batch's own HTTP status cannot represent a
+    mix of accepted and refused files, so the caller must read `items`. Same
+    "the body carries the outcome, not the status line" shape
+    `StatusResponse.status`'s PARTIAL/QUARANTINED vocabulary already uses."""
+
+    accepted_count: int
+    rejected_count: int
+    items: list[BatchUploadItem]
+
+
 class TriggerRequest(BaseModel):
     doc_type_code: str
     period_start: dt.date | None = None
