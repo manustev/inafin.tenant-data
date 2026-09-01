@@ -13,10 +13,12 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 
+import psycopg
 from psycopg import sql
 
 from src.core.pool import TenantScopedPool
 from src.core.tenant import Role, TenantContext
+from src.silver.supersede import close_current
 
 logger = logging.getLogger(__name__)
 
@@ -40,28 +42,18 @@ class EntityMasterService:
         self._pool = pool
 
     async def record(self, ctx: TenantContext, rec: EntityMasterRecord) -> uuid.UUID:
-        record_id = uuid.uuid4()
+        """Insert a new current row, with nothing to supersede."""
         async with self._pool.transaction(ctx, Role.INGEST) as conn:
-            await conn.execute(
-                sql.SQL(
-                    """
-                    INSERT INTO {}.entity_master_record (
-                        record_id, entity_id, master_type, reference_number,
-                        as_of_date, details, status, batch_id, bronze_ingest_id
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """
-                ).format(sql.Identifier(ctx.silver_schema)),
-                (record_id, rec.entity_id, rec.master_type, rec.reference_number,
-                 rec.as_of_date, json.dumps(rec.details), rec.status,
-                 rec.batch_id, rec.bronze_ingest_id),
-            )
+            new_id = await self._insert(conn, ctx, rec, prior_id=None)
         logger.info("recorded %s %s for %s", rec.master_type, rec.reference_number, ctx)
-        return record_id
+        return new_id
 
     async def supersede(
         self, ctx: TenantContext, *, prior_id: uuid.UUID, rec: EntityMasterRecord
     ) -> uuid.UUID:
-        record_id = uuid.uuid4()
+        """Close the prior version and append the corrected one, in ONE
+        transaction — see `EntitlementService.supersede` for why the pair
+        cannot be committed separately."""
         async with self._pool.transaction(ctx, Role.INGEST) as conn:
             await conn.execute(
                 sql.SQL(
@@ -70,19 +62,61 @@ class EntityMasterService:
                 ).format(sql.Identifier(ctx.silver_schema)),
                 (prior_id,),
             )
-            await conn.execute(
-                sql.SQL(
-                    """
-                    INSERT INTO {}.entity_master_record (
-                        record_id, entity_id, master_type, reference_number,
-                        as_of_date, details, status, supersedes_record_id,
-                        batch_id, bronze_ingest_id
-                    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
-                    """
-                ).format(sql.Identifier(ctx.silver_schema)),
-                (record_id, rec.entity_id, rec.master_type, rec.reference_number,
-                 rec.as_of_date, json.dumps(rec.details), rec.status,
-                 prior_id, rec.batch_id, rec.bronze_ingest_id),
+            new_id = await self._insert(conn, ctx, rec, prior_id=prior_id)
+        logger.info("superseded %s with %s for %s", prior_id, new_id, ctx)
+        return new_id
+
+    async def record_or_supersede(self, ctx: TenantContext, rec: EntityMasterRecord) -> uuid.UUID:
+        """Record this row, superseding a current one if it exists.
+
+        The key is `entity_master_record_current_uq`'s columns exactly — see
+        `src/silver/supersede.py`. A NATURAL key: the master record's own
+        reference number (a CIN, a DIN, a registration number). A refreshed
+        snapshot of the same registration supersedes.
+        """
+        async with self._pool.transaction(ctx, Role.INGEST) as conn:
+            prior_id = await close_current(
+                conn,
+                schema=ctx.silver_schema,
+                table="entity_master_record",
+                id_column="record_id",
+                key={
+                    "entity_id": rec.entity_id,
+                    "master_type": rec.master_type,
+                    "reference_number": rec.reference_number,
+                },
             )
-        logger.info("superseded %s with %s for %s", prior_id, record_id, ctx)
-        return record_id
+            new_id = await self._insert(conn, ctx, rec, prior_id=prior_id)
+        logger.info(
+            "recorded %s %s for %s (superseding %s)",
+            rec.master_type, rec.reference_number, ctx, prior_id,
+        )
+        return new_id
+
+    async def _insert(
+        self,
+        conn: psycopg.AsyncConnection[tuple[object, ...]],
+        ctx: TenantContext,
+        rec: EntityMasterRecord,
+        *,
+        prior_id: uuid.UUID | None,
+    ) -> uuid.UUID:
+        """The one INSERT all three entry points share. `record` and
+        `supersede` previously carried two copies differing only in the
+        `supersedes_record_id` column."""
+        new_id = uuid.uuid4()
+        await conn.execute(
+            sql.SQL(
+                """
+                INSERT INTO {}.entity_master_record (
+                    record_id, entity_id, master_type, reference_number,
+                    as_of_date, details, status, supersedes_record_id,
+                    batch_id, bronze_ingest_id
+                ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                """
+            ).format(sql.Identifier(ctx.silver_schema)),
+            (new_id, rec.entity_id, rec.master_type, rec.reference_number,
+             rec.as_of_date, json.dumps(rec.details), rec.status,
+             prior_id, rec.batch_id, rec.bronze_ingest_id),
+        )
+        return new_id

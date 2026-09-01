@@ -17,6 +17,14 @@ same "log and swallow" shape `promote.py`'s post-commit publish and
 That is a real trade and worth naming: the pin is a RECORD of what was handed
 over, not a gate on ingestion. Nothing downstream refuses an upload for want of
 one.
+
+ROLLING A TENANT FORWARD (`roll_forward`, `tenantctl reschema`). Deliberately
+NOT automatic. `schema_pin` is insert-only (the ingest role holds no UPDATE or
+DELETE on it — enforced by GRANT, the same invariant `artefact_ledger`
+enforces on Bronze) so a roll-forward is a NEW row, and migration 028's
+`pinned_by_ingest_id` was made nullable specifically for this: "NULL only for
+a deliberate roll-forward ... which is not caused by any artefact". This is
+that deliberate act, run by an operator, never by ingestion itself.
 """
 
 from __future__ import annotations
@@ -161,4 +169,115 @@ async def ensure_schema_pin(
         return None
 
 
-__all__ = ["SchemaPin", "current_pin", "ensure_schema_pin"]
+async def roll_forward(
+    pool: TenantScopedPool,
+    ctx: TenantContext,
+    *,
+    doc_type_code: str,
+    store: ObjectStorePort,
+    pinned_at: dt.datetime | None = None,
+) -> SchemaPin | None:
+    """Pin this tenant to the CURRENT release for `doc_type_code`, replacing
+    whatever they were pinned to before.
+
+    Unlike `ensure_schema_pin`, this runs unconditionally — it is an
+    operator's deliberate act (`tenantctl reschema`), not something ingestion
+    calls, so it does not check for an existing pin first. `pinned_by_ingest_id`
+    is NULL (migration 028's header names this exact case): the row records
+    that an operator moved the tenant, not that an artefact did.
+
+    Returns the new pin, or None if this tenant had no existing pin AND there
+    is nothing published for the type — there is genuinely nothing to roll.
+    Rolling a NEVER-pinned type forward is a no-op for the same reason
+    `ensure_schema_pin` would also find nothing: the tenant has not touched
+    that type yet, so `current_pin` on their next upload picks up CURRENT on
+    its own.
+
+    Raises whatever the store or the database raises — deliberately NOT
+    swallowed the way `ensure_schema_pin` swallows failures. That function's
+    silence is safe because ingestion must not fail for want of a pin; an
+    operator running this command explicitly wants to know if it did not
+    work.
+    """
+    existing = await current_pin(pool, ctx, doc_type_code=doc_type_code)
+
+    async with pool.transaction(ctx, Role.INGEST) as conn:
+        row = await (
+            await conn.execute(
+                "SELECT a.release_version, a.object_bucket, a.object_key"
+                " FROM platform_ref.schema_artifact a"
+                " JOIN platform_ref.schema_release r"
+                "   ON r.version = a.release_version"
+                " WHERE r.status = 'CURRENT' AND a.kind = 'SCHEMA'"
+                "   AND a.doc_type_code = %s",
+                (doc_type_code,),
+            )
+        ).fetchone()
+
+    if row is None:
+        return existing  # nothing published for this type; nothing to roll to
+
+    release, src_bucket, src_key = str(row[0]), str(row[1]), str(row[2])
+    if existing is not None and existing.release_version == release:
+        return existing  # already current — a second run of this is a no-op
+
+    pinned_at = pinned_at or dt.datetime.now(dt.UTC)
+    body = store.get(bucket=src_bucket, key=src_key)
+    stored = store.put_schema_snapshot(
+        slug=ctx.slug, release=release, doc_type_code=doc_type_code,
+        data=body, pinned_at=pinned_at,
+    )
+
+    async with pool.transaction(ctx, Role.INGEST) as conn:
+        await conn.execute(
+            sql.SQL(
+                "INSERT INTO {}.schema_pin"
+                " (doc_type_code, release_version, pinned_by_ingest_id,"
+                "  schema_sha256, object_bucket, object_key, pinned_at)"
+                " VALUES (%s, %s, NULL, %s, %s, %s, %s)"
+                " ON CONFLICT (doc_type_code, release_version) DO NOTHING"
+            ).format(sql.Identifier(ctx.bronze_schema)),
+            (doc_type_code, release, stored.content_hash,
+             stored.bucket, stored.key, pinned_at),
+        )
+    logger.info(
+        "rolled %s forward to schema release %s for tenant %s",
+        doc_type_code, release, ctx.slug,
+    )
+    return SchemaPin(doc_type_code, release, stored.bucket, stored.key)
+
+
+async def roll_forward_all(
+    pool: TenantScopedPool,
+    ctx: TenantContext,
+    *,
+    store: ObjectStorePort,
+    pinned_at: dt.datetime | None = None,
+) -> list[SchemaPin]:
+    """`roll_forward` for every document type this tenant currently has a
+    pin for. The set of TYPES to roll comes from the tenant's own
+    `schema_pin` history, not the full registry — an operator rolling a
+    tenant forward is bringing what they already have up to date, not
+    handing them types they have never touched.
+    """
+    async with pool.transaction(ctx, Role.INGEST) as conn:
+        rows = await (
+            await conn.execute(
+                sql.SQL(
+                    "SELECT DISTINCT doc_type_code FROM {}.schema_pin ORDER BY 1"
+                ).format(sql.Identifier(ctx.bronze_schema))
+            )
+        ).fetchall()
+    codes = [str(r[0]) for r in rows]
+
+    pins: list[SchemaPin] = []
+    for code in codes:
+        pin = await roll_forward(pool, ctx, doc_type_code=code, store=store, pinned_at=pinned_at)
+        if pin is not None:
+            pins.append(pin)
+    return pins
+
+
+__all__ = [
+    "SchemaPin", "current_pin", "ensure_schema_pin", "roll_forward", "roll_forward_all",
+]

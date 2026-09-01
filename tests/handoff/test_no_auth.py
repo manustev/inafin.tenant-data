@@ -28,8 +28,13 @@ def _request(headers: dict[str, str] | None = None) -> Request:
 
 
 def _settings(**overrides: object) -> Settings:
+    """`_env_file=None` is load-bearing, not tidiness. `Settings` reads `.env`,
+    so a developer with `AUTH_MODE=none` set for their own local runs would
+    otherwise flip the "defaults to static_token" assertion below into testing
+    their machine's config instead of the code's default."""
     return Settings(
         pg_app_dsn="postgresql://x/y", pg_migrate_dsn="postgresql://x/y",
+        _env_file=None,
         **overrides,  # type: ignore[arg-type]
     )
 

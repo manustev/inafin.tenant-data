@@ -42,6 +42,7 @@ import pathlib
 import re
 import sys
 from collections.abc import Iterator
+from typing import cast
 
 import psycopg
 
@@ -108,6 +109,44 @@ def _sample_files() -> Iterator[tuple[str, pathlib.Path]]:
                         yield ref, path
 
 
+def _constraint_block(
+    sql_domain: object, pattern: object, allowed_values: object,
+    min_value: object, max_value: object, max_length: object,
+    numeric_precision: object, numeric_scale: object,
+) -> dict[str, object] | None:
+    """A field's `constraints` object, or None if it carries none.
+
+    None rather than an all-null object: a client checking "does this field
+    have a constraint block at all" gets a clean absence instead of having to
+    inspect every key. Migration 041's columns are the source — nothing here
+    is computed, only reshaped for JSON (the array and the two bounds).
+    """
+    if all(
+        v is None
+        for v in (sql_domain, pattern, allowed_values, min_value, max_value,
+                   max_length, numeric_precision)
+    ):
+        return None
+    block: dict[str, object] = {}
+    if sql_domain is not None:
+        block["sql_domain"] = str(sql_domain)
+    if pattern is not None:
+        block["pattern"] = str(pattern)
+    if allowed_values is not None:
+        block["allowed_values"] = list(cast("list[str]", allowed_values))
+    if min_value is not None:
+        block["min_value"] = str(min_value)
+    if max_value is not None:
+        block["max_value"] = str(max_value)
+    if max_length is not None:
+        block["max_length"] = int(str(max_length))
+    if numeric_precision is not None:
+        block["numeric_precision"] = int(str(numeric_precision))
+    if numeric_scale is not None:
+        block["numeric_scale"] = int(str(numeric_scale))
+    return block
+
+
 def _render_schema(
     conn: psycopg.Connection[tuple[object, ...]], release: str
 ) -> dict[str, bytes]:
@@ -116,11 +155,25 @@ def _render_schema(
     Stable key order and a trailing newline so that re-publishing an unchanged
     release produces byte-identical objects — which is what makes the sha256 in
     `schema_artifact` a meaningful comparison rather than noise.
+
+    `constraints` (migration 041) is emitted ONLY for fields that carry one,
+    and — the load-bearing part — only DERIVED types have any to carry, because
+    a DECLARED type's field list comes from a registry grammar cell with no
+    table behind it. Omitting the key for those types is the honest answer;
+    emitting `"constraints": null` would read as "the database accepts
+    anything", when the truth is "we do not know". `provenance` already tells
+    a client which case they are in.
     """
     fields: dict[str, list[dict[str, object]]] = {}
-    for code, ordinal, name, scope, data_type, required, label in conn.execute(
+    for (
+        code, ordinal, name, scope, data_type, required, label,
+        sql_domain, pattern, allowed_values, min_value, max_value,
+        max_length, numeric_precision, numeric_scale,
+    ) in conn.execute(
         "SELECT doc_type_code, ordinal, field_name, scope, data_type, required,"
-        " source_label FROM platform_ref.document_type_field"
+        "       source_label, sql_domain, pattern, allowed_values,"
+        "       min_value, max_value, max_length, numeric_precision, numeric_scale"
+        "  FROM platform_ref.document_type_field"
         " ORDER BY doc_type_code, ordinal"
     ).fetchall():
         entry: dict[str, object] = {
@@ -132,7 +185,25 @@ def _render_schema(
         }
         if label is not None:
             entry["source_label"] = str(label)
+        constraints = _constraint_block(
+            sql_domain, pattern, allowed_values, min_value, max_value,
+            max_length, numeric_precision, numeric_scale,
+        )
+        if constraints is not None:
+            entry["constraints"] = constraints
         fields.setdefault(str(code), []).append(entry)
+
+    rules: dict[str, list[dict[str, object]]] = {}
+    for code, constraint_name, expression, columns in conn.execute(
+        "SELECT doc_type_code, constraint_name, expression, columns"
+        "  FROM platform_ref.document_type_rule"
+        " ORDER BY doc_type_code, constraint_name"
+    ).fetchall():
+        rules.setdefault(str(code), []).append({
+            "constraint_name": str(constraint_name),
+            "expression": str(expression),
+            "columns": list(cast("list[str]", columns)),
+        })
 
     out: dict[str, bytes] = {}
     for code, name, kind, provenance in conn.execute(
@@ -141,7 +212,7 @@ def _render_schema(
         " JOIN platform_ref.document_type d ON d.doc_type_code = s.doc_type_code"
         " ORDER BY s.doc_type_code"
     ).fetchall():
-        body = {
+        body: dict[str, object] = {
             "release": release,
             "doc_type_code": str(code),
             "name": str(name),
@@ -149,6 +220,9 @@ def _render_schema(
             "provenance": str(provenance),
             "fields": fields.get(str(code), []),
         }
+        type_rules = rules.get(str(code))
+        if type_rules:
+            body["rules"] = type_rules
         out[str(code)] = (
             json.dumps(body, indent=2, sort_keys=False, ensure_ascii=False) + "\n"
         ).encode()

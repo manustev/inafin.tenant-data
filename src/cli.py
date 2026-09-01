@@ -14,12 +14,15 @@ import logging
 import sys
 import uuid
 
-import psycopg
-
+import src.catalogue.pin as catalogue_pin
 from src.bronze.scan import build_scanner
 from src.bronze.service import BronzeIngestionService
 from src.core.config import Settings, get_settings
-from src.core.errors import SchemaDriftError
+from src.core.errors import (
+    SchemaDriftError,
+    SilverConstraintViolation,
+    UnknownArtefact,
+)
 from src.core.pool import TenantScopedPool
 from src.core.tenant import TenantContext
 from src.dispatch.trigger import TriggerOutcome, record_and_dispatch_trigger
@@ -171,8 +174,28 @@ def cmd_trigger(args: argparse.Namespace) -> int:
                 period_start, period_end, args.gstin,
             )
         )
-    except psycopg.errors.ForeignKeyViolation:
+    except UnknownArtefact:
         print(f"ERROR: no artefact {ingest_id} for tenant {args.slug!r}", file=sys.stderr)
+        return 1
+    except SilverConstraintViolation as exc:
+        # The CLI's equivalent of the route's 409/422 split. There is only one
+        # exit code to give (1 either way), so the distinction has to live in
+        # the text — CONFLICT/INVALID is printed rather than inferred from the
+        # Postgres message, and the constraint name is the operator's fastest
+        # route to which index or check actually fired.
+        where = " ".join(
+            f"{label}={value}"
+            for label, value in (
+                ("constraint", exc.constraint),
+                ("column", exc.column),
+                ("table", exc.table),
+            )
+            if value
+        )
+        print(
+            f"ERROR: {exc.kind}: {exc}" + (f" [{where}]" if where else ""),
+            file=sys.stderr,
+        )
         return 1
     except RuntimeError as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
@@ -192,6 +215,68 @@ def cmd_trigger(args: argparse.Namespace) -> int:
         line += f" batch={result.batch_id}"
     print(line)
     return 0 if result.status in ("ACCEPTED", "PARTIAL") else 1
+
+
+async def _run_reschema(
+    settings: Settings, slug: str, doc_type_code: str | None,
+) -> list[catalogue_pin.SchemaPin]:
+    """Assembles a pool and an object store for this one call and tears them
+    down again — the same shape `_run_trigger` uses, for the same reason
+    (see its docstring): a CLI invocation is scoped differently from a
+    long-running server's lifespan.
+    """
+    pool = TenantScopedPool(settings.pg_app_dsn, min_size=1, max_size=4)
+    await pool.open()
+    try:
+        store = _store(settings)
+        if store is None:
+            raise RuntimeError(
+                "no S3/MinIO configuration (s3_endpoint_url / s3_access_key) — "
+                "rolling forward needs object storage to copy the new schema "
+                "file into the tenant's own bucket"
+            )
+        ctx = TenantContext(slug)
+        if doc_type_code is not None:
+            pin = await catalogue_pin.roll_forward(
+                pool, ctx, doc_type_code=doc_type_code, store=store,
+            )
+            return [pin] if pin is not None else []
+        return await catalogue_pin.roll_forward_all(pool, ctx, store=store)
+    finally:
+        await pool.close()
+
+
+def cmd_reschema(args: argparse.Namespace) -> int:
+    """Roll a tenant's schema pin(s) forward to the CURRENT release —
+    `src/catalogue/pin.py`'s `roll_forward`/`roll_forward_all`, the operator
+    command migration 028's nullable `pinned_by_ingest_id` was written to
+    allow ("NULL only for a deliberate roll-forward").
+
+    Deliberately an OPERATOR action, never something ingestion calls itself:
+    `ensure_schema_pin` (the ingestion-path pin) never overwrites an existing
+    pin and never fails an upload for want of one. This command does the
+    opposite of both — it overwrites on purpose, and it surfaces failure,
+    because an operator running it explicitly wants to know if it did not
+    work.
+
+    With `--doc-type` given, rolls forward exactly that one type — pin or no
+    prior pin. Without it, rolls forward every type this tenant has EVER been
+    pinned to; a type the tenant has never uploaded is left alone; their next
+    upload of it picks up CURRENT on its own.
+    """
+    settings = get_settings()
+    try:
+        pins = asyncio.run(_run_reschema(settings, args.slug, args.doc_type_code))
+    except RuntimeError as exc:
+        print(f"ERROR: {exc}", file=sys.stderr)
+        return 1
+
+    if not pins:
+        print(f"{args.slug}: nothing to roll forward")
+        return 0
+    for pin in pins:
+        print(f"{args.slug}: {pin.doc_type_code} -> {pin.release_version}")
+    return 0
 
 
 def cmd_drift(_: argparse.Namespace) -> int:
@@ -231,12 +316,23 @@ def main() -> int:
     p.add_argument("--period-end", default=None, help="YYYY-MM-DD")
     p.add_argument("--gstin", default=None)
 
+    p = sub.add_parser(
+        "reschema",
+        help="roll a tenant's schema pin(s) forward to the CURRENT release",
+    )
+    p.add_argument("slug", help="tenant slug")
+    p.add_argument(
+        "--doc-type", dest="doc_type_code", default=None,
+        help="roll forward only this type; default is every type the tenant has a pin for",
+    )
+
     args = parser.parse_args()
     return {
         "migrate": cmd_migrate,
         "provision": cmd_provision,
         "drift": cmd_drift,
         "trigger": cmd_trigger,
+        "reschema": cmd_reschema,
     }[args.command](args)
 
 

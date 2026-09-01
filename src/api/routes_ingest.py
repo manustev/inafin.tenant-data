@@ -11,7 +11,6 @@ from __future__ import annotations
 
 import uuid
 
-import psycopg
 from fastapi import APIRouter, Form, HTTPException, UploadFile
 
 from src.api.deps import (
@@ -32,7 +31,11 @@ from src.api.schemas import (
     TriggerResponse,
     UploadResponse,
 )
-from src.core.errors import IntakeRejected
+from src.core.errors import (
+    IntakeRejected,
+    SilverConstraintViolation,
+    UnknownArtefact,
+)
 from src.dispatch.trigger import record_and_dispatch_trigger
 
 router = APIRouter(prefix="/artefacts", tags=["ingest"])
@@ -176,6 +179,13 @@ async def trigger_load(
     codebase gets from GRANT, not from a WHERE clause the caller could get
     wrong.
 
+    THREE FAILURE SURFACES, not one. 404 the artefact does not exist here;
+    422 the request or the file is wrong; 409 the document is already
+    recorded. `record_and_dispatch_trigger` raises a distinct type for each
+    and this handler only chooses the status code — deciding WHICH kind a
+    psycopg error represents is that module's job, because it is the only
+    layer that knows which statement raised it.
+
     Dispatch itself is `src/dispatch/router.py`'s `dispatch_load` — see
     `src/api/app.py`'s docstring for why calling it here does not reopen
     "the upsert must NOT go behind an API".
@@ -187,9 +197,24 @@ async def trigger_load(
             period_start=body.period_start, period_end=body.period_end, gstin=body.gstin,
             store=store, reader=pdf_text_reader, publisher=batch_publisher,
         )
-    except psycopg.errors.ForeignKeyViolation as exc:
+    except UnknownArtefact as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except SilverConstraintViolation as exc:
+        # 409 for CONFLICT, 422 for INVALID — deliberately not one status for
+        # both. A unique violation on a `*_current_uq` index means the
+        # document is already recorded and its current version stands; the
+        # client must NOT retry the same bytes, which is what 409 says and
+        # 422 does not. Everything else is a value the client can fix and
+        # resend. Both used to be an opaque 500.
         raise HTTPException(
-            status_code=404, detail=f"no artefact {ingest_id} for this tenant"
+            status_code=409 if exc.kind == "CONFLICT" else 422,
+            detail={
+                "message": str(exc),
+                "kind": exc.kind,
+                "constraint": exc.constraint,
+                "column": exc.column,
+                "table": exc.table,
+            },
         ) from exc
     except ValueError as exc:
         # Covers both MissingDispatchFieldError and infer_content_format's

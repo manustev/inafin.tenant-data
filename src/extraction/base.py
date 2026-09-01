@@ -319,7 +319,7 @@ class EntitlementExtractor(DocumentExtractor):
             scope=dict(fields.get("scope") or {}),  # type: ignore[call-overload]
             obligation=dict(fields.get("obligation") or {}),  # type: ignore[call-overload]
         )
-        instrument_id = await self._service.record(ctx, rec)
+        instrument_id = await self._service.record_or_supersede(ctx, rec)
         _put_silver_copy(
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
@@ -423,7 +423,7 @@ class ProceedingEventExtractor(DocumentExtractor):
             batch_id=batch_id,
             bronze_ingest_id=ingest_id,
         )
-        event_id = await self._service.record(ctx, rec)
+        event_id = await self._service.record_or_supersede(ctx, rec)
         _put_silver_copy(
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
@@ -511,7 +511,7 @@ class EntityMasterExtractor(DocumentExtractor):
             batch_id=batch_id,
             bronze_ingest_id=ingest_id,
         )
-        record_id = await self._service.record(ctx, rec)
+        record_id = await self._service.record_or_supersede(ctx, rec)
         _put_silver_copy(
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
@@ -600,7 +600,7 @@ class FinancialStatementExtractor(DocumentExtractor):
             batch_id=batch_id,
             bronze_ingest_id=ingest_id,
         )
-        extract_id = await self._service.record(ctx, rec)
+        extract_id = await self._service.record_or_supersede(ctx, rec)
         _put_silver_copy(
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,
@@ -706,7 +706,7 @@ class NarrativeContractExtractor(DocumentExtractor):
             batch_id=batch_id,
             bronze_ingest_id=ingest_id,
         )
-        contract_id = await self._service.record(ctx, rec)
+        contract_id = await self._service.record_or_supersede(ctx, rec)
         _put_silver_copy(
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,

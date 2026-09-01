@@ -76,3 +76,60 @@ class IntakeRejected(TenantDataError):
     becomes evidence at all. Raised by `src.bronze.filecheck` and
     `src.bronze.scan`.
     """
+
+
+class UnknownArtefact(TenantDataError):
+    """The `ingest_id` a trigger names has no `artefact_ledger` row here.
+
+    Raised by `src.dispatch.trigger` when `load_trigger`'s foreign key to
+    `artefact_ledger` rejects the insert. Its own type rather than a leaked
+    `psycopg.errors.ForeignKeyViolation` for one specific reason: a FK
+    violation raised LATER, from a Silver write, means something entirely
+    different (a row referenced an unknown batch, doc type or master value)
+    and must not be reported as "no such artefact". Catching the psycopg type
+    at the route could not tell the two apart; catching it around the one
+    statement that can raise it for that reason can.
+    """
+
+
+class SilverConstraintViolation(TenantDataError):
+    """A Silver write was refused by a database constraint.
+
+    Bronze accepted the bytes, dispatch found a loader, and the loader built
+    a row the database then rejected. That is neither a caller mistake about
+    the REQUEST (those are `ValueError`s — an unknown extension, a missing
+    dispatch field) nor a judgement Silver reached about the document
+    (`ValidationRejected`, which quarantines). It is Postgres enforcing a
+    constraint the published schema either did not express or the file did
+    not honour, and before this type existed it reached the caller as an
+    opaque 500.
+
+    `kind` splits the two cases a client must handle differently:
+
+      CONFLICT  a unique index fired. On the `*_current_uq` indexes this
+                means "you already sent this document and the prior version
+                is still current" — a resubmission, not malformed data. The
+                client should not retry the same bytes.
+      INVALID   a check, not-null, foreign-key or data-type constraint
+                fired. The file's contents are wrong for this column. The
+                client should fix the value and resend.
+
+    `constraint`, `column` and `table` come from `psycopg`'s `Diagnostic`
+    and are whatever the server chose to populate — all three are optional
+    because Postgres does not fill every field for every error class.
+    """
+
+    def __init__(
+        self,
+        message: str,
+        *,
+        kind: str,
+        constraint: str | None = None,
+        column: str | None = None,
+        table: str | None = None,
+    ) -> None:
+        super().__init__(message)
+        self.kind = kind
+        self.constraint = constraint
+        self.column = column
+        self.table = table

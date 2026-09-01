@@ -137,3 +137,50 @@ async def test_cli_trigger_matches_the_http_route_exactly(
     assert row is not None
     assert row[0] == "PURCHASE_REGISTER"
     assert row[1] == 1
+
+
+async def test_cli_trigger_reports_a_constraint_violation_as_one_clean_line(
+    bronze: BronzeIngestionService,
+    app_pool: TenantScopedPool,
+    tenant_a: SeededTenant,
+    entity_id: uuid.UUID,
+) -> None:
+    """The CLI's half of the 2026-09-01 error-mapping fix.
+
+    There is only one exit code to give (1 either way), so the CONFLICT /
+    INVALID distinction the HTTP route carries as 409-versus-422 has to live
+    in the text here — printed explicitly rather than left for an operator to
+    infer from the Postgres message. The constraint name is the fastest route
+    to which check actually fired.
+
+    A traceback would also be "an error", which is why this asserts the
+    absence of one: an unhandled `psycopg` exception out of `asyncio.run` is
+    what this replaced, and it is indistinguishable to a caller from the CLI
+    itself being broken.
+    """
+    from tests.conformance.test_registers import synthetic_csv
+
+    data = synthetic_csv(
+        PURCHASE_REGISTER_SPEC,
+        seed="A",
+        overrides={
+            "supplier_gstin": "NOTAGSTIN12345",
+            "invoice_no": f"PI-CLI-BADGSTIN-{uuid.uuid4().hex[:8]}",
+        },
+    )
+    receipt = await bronze.receive(
+        tenant_a.ctx, entity_id=entity_id, data=data, filename="bad_gstin.csv",
+        document_type="PURCHASE_REGISTER",
+    )
+
+    result = _run_cli(
+        tenant_a.ctx.slug, str(receipt.ingest_id), "PURCHASE_REGISTER",
+        "--period-start", "2026-04-01", "--period-end", "2026-04-30",
+        "--gstin", GSTIN,
+    )
+
+    assert result.returncode == 1, result.stdout + result.stderr
+    assert "Traceback" not in result.stderr
+    assert result.stderr.startswith("ERROR: INVALID:")
+    assert "gstin_check" in result.stderr
+    assert len(result.stderr.strip().splitlines()) == 1

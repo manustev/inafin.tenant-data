@@ -17,14 +17,24 @@ exit codes and stderr for the CLI).
 WHAT THIS RAISES VERSUS WHAT IT RETURNS. Two different things can go wrong
 with a trigger, and they are deliberately not the same shape:
 
-  * `psycopg.errors.ForeignKeyViolation` (no such `ingest_id` for this
-    tenant), `ValueError` from `infer_content_format` (an unrecognised file
-    extension), `MissingDispatchFieldError` (a mechanism needs
+  * `UnknownArtefact` (no such `ingest_id` for this tenant), `ValueError`
+    from `infer_content_format` (an unrecognised file extension),
+    `MissingDispatchFieldError` (a mechanism needs
     `period_start`/`period_end`/`gstin` and the caller didn't supply one),
     `UnknownExtractorError` (an archetype-3 type with no registry
-    `extraction_spec`) — these are CALLER MISTAKES. The request itself was
+    `extraction_spec`) — these are CALLER MISTAKES about the REQUEST. It was
     malformed or incomplete, so they propagate as exceptions for each caller
     to map onto its own error surface (HTTP 404/422, or a CLI exit code).
+
+  * `SilverConstraintViolation` is a caller mistake about the FILE. Bronze
+    took the bytes, a loader was found, and the database refused the row it
+    built. Raised rather than folded because no Silver write survived: there
+    is no batch to report and nothing was quarantined, so `TriggerOutcome`
+    has no honest status to carry. Its `kind` splits CONFLICT (a unique
+    index — a resubmission) from INVALID (a check, not-null, foreign-key or
+    data-type constraint — a wrong value), because a client must respond to
+    those differently; see `src/core/errors.py`. Every one of these reached
+    the caller as an opaque HTTP 500 before 2026-09-01.
 
   * `NoDispatchMechanismError` and `ValidationRejected` are NOT caller
     mistakes — they are legitimate OUTCOMES of a well-formed trigger
@@ -41,10 +51,15 @@ import uuid
 from dataclasses import dataclass
 from typing import cast
 
+import psycopg
 from psycopg import sql
 
 from src.bronze.service import BronzeIngestionService
-from src.core.errors import ValidationRejected
+from src.core.errors import (
+    SilverConstraintViolation,
+    UnknownArtefact,
+    ValidationRejected,
+)
 from src.core.pool import TenantScopedPool
 from src.core.tenant import Role, TenantContext
 from src.dispatch.content_format import infer_content_format
@@ -88,19 +103,30 @@ async def record_and_dispatch_trigger(
     `load_trigger` is written first and unconditionally — the durable record
     that a trigger was requested, independent of whether dispatch succeeds.
     Its FK to `artefact_ledger` means an unknown `ingest_id` for this tenant
-    raises `psycopg.errors.ForeignKeyViolation` here, not a 404 — mapping
-    that to a status code is the HTTP route's job, not this function's.
+    raises `UnknownArtefact` here, not a 404 — mapping that to a status code
+    is the HTTP route's job, not this function's.
     """
-    async with pool.transaction(ctx, Role.INGEST) as conn:
-        row = await (
-            await conn.execute(
-                sql.SQL(
-                    "INSERT INTO {}.load_trigger (ingest_id, doc_type_code)"
-                    " VALUES (%s, %s) RETURNING id, ingest_id, doc_type_code, requested_at"
-                ).format(sql.Identifier(ctx.bronze_schema)),
-                (ingest_id, doc_type_code),
-            )
-        ).fetchone()
+    try:
+        async with pool.transaction(ctx, Role.INGEST) as conn:
+            row = await (
+                await conn.execute(
+                    sql.SQL(
+                        "INSERT INTO {}.load_trigger (ingest_id, doc_type_code)"
+                        " VALUES (%s, %s) RETURNING id, ingest_id, doc_type_code, requested_at"
+                    ).format(sql.Identifier(ctx.bronze_schema)),
+                    (ingest_id, doc_type_code),
+                )
+            ).fetchone()
+    except psycopg.errors.ForeignKeyViolation as exc:
+        # SCOPED TO THIS STATEMENT ON PURPOSE. `load_trigger`'s only foreign
+        # key is to `artefact_ledger`, so a violation here can mean exactly
+        # one thing. A ForeignKeyViolation from the dispatch below means
+        # something else entirely — a Silver row referencing an unknown
+        # batch, doc type or master value — and the route used to report
+        # that as "no artefact for this tenant", which was wrong.
+        raise UnknownArtefact(
+            f"no artefact {ingest_id} for this tenant"
+        ) from exc
 
     assert row is not None
     raw_trigger_id, raw_ingest_id, raw_doc_type_code, raw_requested_at = row
@@ -133,9 +159,43 @@ async def record_and_dispatch_trigger(
         return _recorded_only("UNROUTED")
     except ValidationRejected:
         return _recorded_only("QUARANTINED")
+    except psycopg.errors.UniqueViolation as exc:
+        raise _constraint_violation(exc, kind="CONFLICT") from exc
+    except (psycopg.errors.IntegrityError, psycopg.errors.DataError) as exc:
+        # IntegrityError covers check (including a DOMAIN's check —
+        # `platform_ref.gstin`, `tax_rate` — which Postgres reports as
+        # SQLSTATE 23514 like any other), not-null, foreign-key and
+        # exclusion violations. DataError covers the class that never
+        # reaches a constraint at all because the value cannot be coerced:
+        # numeric_value_out_of_range on `numeric(6,3)`, an invalid date
+        # literal. Both are the same thing to a client — the file's contents
+        # are wrong for that column — so both map to INVALID.
+        raise _constraint_violation(exc, kind="INVALID") from exc
 
     return TriggerOutcome(
         trigger_id=trigger_id, ingest_id=resolved_ingest_id,
         doc_type_code=resolved_doc_type_code, requested_at=requested_at,
         status=outcome.status, mechanism=outcome.mechanism, batch_id=outcome.batch_id,
+    )
+
+
+def _constraint_violation(
+    exc: psycopg.Error, *, kind: str
+) -> SilverConstraintViolation:
+    """Carry `psycopg`'s `Diagnostic` fields onto our own error type.
+
+    `primary` alone ("duplicate key value violates unique constraint
+    ...") is what a client saw as an opaque 500 body before this; the
+    diagnostic fields are what make it actionable. Postgres does not
+    populate every field for every error class, hence the Nones — a
+    DataError typically names neither a constraint nor a column, and
+    that is reported honestly rather than filled in with a guess.
+    """
+    diag = exc.diag
+    return SilverConstraintViolation(
+        (diag.message_primary or str(exc)).strip(),
+        kind=kind,
+        constraint=diag.constraint_name,
+        column=diag.column_name,
+        table=diag.table_name,
     )

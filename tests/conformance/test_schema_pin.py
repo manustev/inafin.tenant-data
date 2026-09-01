@@ -18,11 +18,13 @@ import uuid
 
 import psycopg
 import pytest
+from psycopg import sql
 from tests.conftest import SeededTenant
 
 from src.bronze.service import BronzeIngestionService
-from src.catalogue.pin import current_pin
+from src.catalogue.pin import current_pin, roll_forward, roll_forward_all
 from src.core.pool import TenantScopedPool
+from src.core.tenant import Role
 from src.provisioning.objectstore import S3ObjectStore
 
 pytestmark = pytest.mark.conformance
@@ -193,3 +195,122 @@ async def test_a_broken_store_does_not_fail_the_upload(
     )
     assert receipt.ingest_id is not None
     assert receipt.deduplicated is False
+
+
+async def test_roll_forward_replaces_the_pin_and_never_touches_the_prior_row(
+    app_pool: TenantScopedPool,
+    tenant_a: SeededTenant,
+    api_object_store: S3ObjectStore,
+    admin: psycopg.Connection[tuple[object, ...]],
+) -> None:
+    """`tenantctl reschema` — Step 4c of the ERP upload E2E remediation
+    (2026-09-01): the constraint columns (migration 041/042) only reach a
+    tenant that re-pins, and `schema_pin` is insert-only, so an operator
+    command has to add a NEW row rather than editing the old one. That is
+    exactly what migration 028 built `pinned_by_ingest_id` nullable for.
+
+    Simulates a tenant already pinned to an OLDER release by inserting the
+    row directly rather than going through `ensure_schema_pin` — that
+    function always pins CURRENT, so it cannot itself produce a tenant who
+    needs rolling forward once only one release has ever existed. A real
+    superseded release (`v1`, still present in `schema_artifact` — releases
+    are never deleted) makes this a realistic prior state, not a fake one.
+    """
+    doc_type = "ADVANCE_RECEIPT_REGISTER"  # untouched by other pin tests
+
+    async with app_pool.transaction(tenant_a.ctx, Role.INGEST) as conn:
+        await conn.execute(
+            sql.SQL(
+                "INSERT INTO {}.schema_pin"
+                " (doc_type_code, release_version, schema_sha256,"
+                "  object_bucket, object_key, pinned_at)"
+                " VALUES (%s, 'v1', '\\x00', 'x', 'x', now())"
+            ).format(sql.Identifier(tenant_a.ctx.bronze_schema)),
+            (doc_type,),
+        )
+
+    before = await current_pin(app_pool, tenant_a.ctx, doc_type_code=doc_type)
+    assert before is not None and before.release_version == "v1"
+
+    rolled = await roll_forward(
+        app_pool, tenant_a.ctx, doc_type_code=doc_type, store=api_object_store,
+    )
+    assert rolled is not None
+    assert rolled.release_version == "v2"
+
+    after = await current_pin(app_pool, tenant_a.ctx, doc_type_code=doc_type)
+    assert after is not None and after.release_version == "v2"
+
+    # The v1 row must still be there — insert-only, never edited or replaced.
+    rows = admin.execute(
+        sql.SQL(
+            "SELECT release_version, pinned_by_ingest_id"
+            "  FROM {}.schema_pin WHERE doc_type_code = %s ORDER BY release_version"
+        ).format(sql.Identifier(tenant_a.ctx.bronze_schema)),
+        (doc_type,),
+    ).fetchall()
+    assert [r[0] for r in rows] == ["v1", "v2"]
+    # NULL, not the artefact that (falsely) would imply this pin came from an
+    # upload — migration 028's exact case for a nullable column.
+    assert rows[1][1] is None
+
+    body = api_object_store.get(bucket=rolled.object_bucket, key=rolled.object_key)
+    assert json.loads(body)["release"] == "v2"
+
+
+async def test_roll_forward_twice_is_a_no_op(
+    app_pool: TenantScopedPool,
+    tenant_a: SeededTenant,
+    api_object_store: S3ObjectStore,
+    admin: psycopg.Connection[tuple[object, ...]],
+) -> None:
+    """An operator re-running `tenantctl reschema` after a tenant is already
+    current must not append a redundant row every time."""
+    doc_type = "UNBILLED_REVENUE_SCHEDULE"
+    first = await roll_forward(
+        app_pool, tenant_a.ctx, doc_type_code=doc_type, store=api_object_store,
+    )
+    second = await roll_forward(
+        app_pool, tenant_a.ctx, doc_type_code=doc_type, store=api_object_store,
+    )
+    assert first is not None and second is not None
+    assert first.release_version == second.release_version
+
+    count = admin.execute(
+        sql.SQL(
+            "SELECT count(*) FROM {}.schema_pin WHERE doc_type_code = %s"
+        ).format(sql.Identifier(tenant_a.ctx.bronze_schema)),
+        (doc_type,),
+    ).fetchone()
+    assert count is not None and count[0] == 1
+
+
+async def test_roll_forward_all_only_touches_types_this_tenant_has_pinned(
+    app_pool: TenantScopedPool,
+    tenant_a: SeededTenant,
+    api_object_store: S3ObjectStore,
+    admin: psycopg.Connection[tuple[object, ...]],
+) -> None:
+    """`--doc-type` omitted means "everything this tenant already has", not
+    "every in-scope type in the registry" — a tenant who has never uploaded
+    GSTR_9C should not be handed a pin for it just because an operator ran
+    this without an argument."""
+    doc_type = "JOBWORK_DISPATCH_REGISTER"
+    await roll_forward(
+        app_pool, tenant_a.ctx, doc_type_code=doc_type, store=api_object_store,
+    )
+
+    pinned_types = {
+        str(r[0])
+        for r in admin.execute(
+            sql.SQL("SELECT DISTINCT doc_type_code FROM {}.schema_pin").format(
+                sql.Identifier(tenant_a.ctx.bronze_schema)
+            )
+        ).fetchall()
+    }
+
+    rolled = await roll_forward_all(app_pool, tenant_a.ctx, store=api_object_store)
+    rolled_types = {p.doc_type_code for p in rolled}
+
+    assert rolled_types == pinned_types
+    assert "GSTR_9C" not in rolled_types

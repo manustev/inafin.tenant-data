@@ -22,7 +22,7 @@ after adoption is confirmed.
 
 ## Minimum migration version
 
-- Shared chain: `040_schema_catalogue_reader_grants.sql`
+- Shared chain: `042_document_field_constraints_seed.sql`
 - Tenant chain: `029_drop_v1_schema_pin_view.sql` (every tenant)
 
 > **READ THIS IF YOU ARE UPGRADING FROM BELOW SHARED `038`.** Every ambient
@@ -254,6 +254,76 @@ ships. A `document_type` that passes `inafin-api`'s own validation but fails
 `/artefacts`' `422` means the two have drifted — that is the bug the
 catalogue exists to prevent.
 
+### Pre-flight validation: the constraint columns (migration `041`)
+
+`data_type` is the coarse kind a CSV cell parses as — `text`, `date`,
+`decimal`. It is **not** what the column will accept, and validating against
+it alone is what produced the ERP upload E2E suite's 140 trigger errors
+across 70 document types (2026-09-01): a client generated exports that
+satisfied the published schema and Postgres refused them at ingestion.
+
+`document_type_field` now also carries, for `DERIVED` types:
+
+| Column | Meaning |
+|---|---|
+| `sql_domain` | Schema-qualified domain, e.g. `platform_ref.gstin`. Stable and self-describing; two fields sharing a domain share it visibly. |
+| `pattern` | POSIX regex the value must match, from the column's own check or its domain's. Verbatim as Postgres reports it — **not** translated to another regex dialect. |
+| `allowed_values` | The COMPLETE accepted vocabulary, in declaration order. `NULL` means no vocabulary, never an empty one. |
+| `min_value`, `max_value` | **Inclusive** bounds. |
+| `max_length` | `character(n)` width — the fixed-width codes (`currency` is `char(3)`, `dr_cr` is `char(2)`). |
+| `numeric_precision`, `numeric_scale` | `numeric(p,s)`. Scale silently **rounds** an over-precise value; precision **rejects** an over-long one. |
+
+All are `NULL` where the column carries no such constraint — never "not
+looked at". Coverage today: 152 domain-backed fields, 17 patterns, 18
+vocabularies, 14 bounded, 5 fixed-width, 143 with precision/scale.
+
+**Only `DERIVED` types carry these, and that is deliberate.** A `DECLARED`
+type's field list comes from a registry grammar cell and owns no table, so
+there is no constraint to read; publishing empty ones would imply the
+database accepts anything. Check `document_type_schema.provenance` before
+telling a user their input is valid — for a `DECLARED` or `PENDING` type,
+`inafin-api` genuinely does not know.
+
+`document_type_rule` carries what no single field can express: multi-column
+business rules (today, one — `sales_register_line_tax_head`: IGST positive
+implies CGST and SGST zero), and any check whose shape the derivation does
+not parse, published as its expression rather than dropped. Envelope
+constraints are excluded on purpose — `valid_to > valid_from` and
+`doc_type_code = 'X'` are real but the loader owns those columns, not the
+tenant.
+
+**All of this is derived from `pg_constraint`/`pg_type`, never hand-written**
+(`src/catalogue/field_constraints.py`, seeded by migration `042`, gated by
+`tests/conformance/test_field_constraints.py` against live DDL). Do not
+mirror these values into `inafin-api` as constants — read them. That is the
+same rule as "never hardcode the list of valid `document_type` values",
+for the same reason.
+
+### Trigger failures: `409` and `422` are different answers
+
+`POST /artefacts/{id}/trigger` previously returned an opaque `500` whenever
+Postgres refused a row. It now classifies (2026-09-01):
+
+| Status | Meaning | What the client should do |
+|---|---|---|
+| `404` | No artefact with that `ingest_id` for this tenant. | Check the id. |
+| `422` | The request or the FILE is wrong — an unrecognised extension, a missing dispatch field, or a value the database refused (check, not-null, foreign-key, or a type it could not coerce). | Fix and resend. |
+| `409` | The document is already recorded and its current version stands — a unique index fired. | **Do not resend these bytes.** |
+
+For `409`/`422` the body's `detail` is an object, not a string:
+`{"message", "kind", "constraint", "column", "table"}`, where `kind` is
+`CONFLICT` or `INVALID` and the other three come from Postgres's diagnostics
+(`constraint` is usually populated; `column` and `table` often are not — a
+domain check names neither). `constraint` is the actionable field: it joins
+to `document_type_rule.constraint_name`, and for a field-level failure it
+names the check or domain that fired.
+
+**One behaviour change to be aware of**: a foreign-key violation raised by a
+*Silver* write (a row referencing an unknown batch, doc type, or
+`universal_master` value) used to surface as `404 "no artefact for this
+tenant"`. It is now a `422`. The old answer was wrong — the artefact exists;
+the row referencing something unknown is the problem.
+
 ### One thing `inafin-api` never has to set
 
 `received_from` — which door an artefact came through — is set **server-side**
@@ -274,7 +344,8 @@ Read-only (`SELECT`):
 | `api_principal`, `principal_tenant_role`, `role`, `role_permission`, `permission` | Identity/authorization resolution. |
 | `principal_customer_access`, `tenant_customer` | Which principal may act on which customer; which tenant a customer resolves to. |
 | `document_type_schema` | Per document type: `schema_kind` (TABULAR/DOCUMENT/JSON/UNSPECIFIED — how a tenant supplies it) and `provenance` (DERIVED/DECLARED/PENDING — how trustworthy the field list is). One row for all 125 in-scope types. |
-| `document_type_field` | The tenant-facing field list: `ordinal`, `field_name`, `scope` (ROW/HEADER/LINE/DOCUMENT), `data_type`, `required`, `source_label`. **These are export columns, not Silver columns** — `batch_id`, `row_hash` and the bitemporal tail are deliberately absent. |
+| `document_type_field` | The tenant-facing field list: `ordinal`, `field_name`, `scope` (ROW/HEADER/LINE/DOCUMENT), `data_type`, `required`, `source_label`, plus the constraint columns below (migration `041`). **These are export columns, not Silver columns** — `batch_id`, `row_hash` and the bitemporal tail are deliberately absent. |
+| `document_type_rule` | Constraints belonging to no single field: `constraint_name`, `expression`, `columns`. Migration `041`. |
 | `schema_release` | Published releases (`v1`, `v2`, …) and their status. Exactly one is `CURRENT`. |
 | `schema_artifact` | One row per published file: `kind` (SCHEMA/SAMPLE), `object_bucket`, `object_key`, `object_version_id`, `sha256`. The bytes live in the platform bucket. |
 
@@ -331,6 +402,27 @@ Two things to get right:
 
 Publishing a release is this repo's job (`scripts/publish_schema_release.py`).
 `inafin-api` never writes any of these tables — all four are `SELECT` only.
+
+### `v2` is CURRENT (2026-09-01) — every existing pin was rolled forward
+
+`v1` is `SUPERSEDED`, never deleted — both `acme` and `globex` (the only
+tenants that exist; nothing is deployed anywhere else yet) had every one of
+their pins moved to `v2` on publish, so there is no tenant on this cluster
+still reading `v1`. This was a deliberate one-time cleanup, not the normal
+mode: `v1` had no constraint columns published at all (they did not exist
+until migration `041`), so `v2` is the first release worth having, and there
+were no real clients to protect from the change. A future release will NOT
+default to being rolled out this way — see the operator command below,
+which exists precisely so that decision is made on purpose each time.
+
+**`tenantctl reschema <slug> [--doc-type CODE]`** — the operator command
+`schema_pin`'s nullable `pinned_by_ingest_id` (migration `028`) was written
+to allow: roll a tenant's pin(s) forward to whatever release is CURRENT.
+Without `--doc-type`, rolls forward every type the tenant has EVER been
+pinned to (not the full registry — a type they have never uploaded is left
+alone; their next upload of it picks up CURRENT on its own). Idempotent —
+re-running it when a tenant is already current does nothing.
+`src/catalogue/pin.py`'s `roll_forward`/`roll_forward_all`.
 
 ### Concrete query pattern
 

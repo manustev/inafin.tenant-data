@@ -474,3 +474,138 @@ def test_batch_upload_is_provenanced_portal_per_file(
         (ingest_id,),
     ).fetchone()
     assert row is not None and row[0] == "PORTAL"
+
+
+def test_trigger_is_422_with_constraint_context_when_the_database_refuses_a_value(
+    api_client: TestClient, tenant_a: SeededTenant
+) -> None:
+    """The status code half of the ERP upload E2E finding (2026-09-01).
+
+    `supplier_gstin` is published as plain `text` in the schema catalogue but
+    is `platform_ref.gstin` in the table, so a CSV valid against the
+    downloaded schema can still be refused by the domain's CHECK. Before
+    this, the route caught only ForeignKeyViolation and ValueError and every
+    one of these escaped as an opaque 500 — a client had no way to tell a bad
+    value from a broken server.
+
+    The body carries the constraint name because that is the only thing that
+    makes the 422 actionable: "gstin_check" tells a client which of the
+    fourteen columns to look at, and the bare message does not.
+    """
+    entity_id = uuid.uuid4()
+    upload = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={"entity_id": str(entity_id), "document_type": "PURCHASE_REGISTER"},
+        files={
+            "file": (
+                "purchase_register.csv",
+                b"supplier_gstin,invoice_no,invoice_date,hsn_sac,taxable_value,"
+                b"gst_rate,cgst,sgst,igst,cess,gl_code,cost_centre,"
+                b"itc_eligibility,rcm_flag\n"
+                b"NOTAGSTIN12345,PI-ROUTE-1,2026-04-15,9983,100.00,18.00,"
+                b"9.00,9.00,0.00,0.00,GL-1,CC-1,ELIGIBLE,false\n",
+                "text/csv",
+            )
+        },
+    )
+    assert upload.status_code == 201, upload.text
+    ingest_id = upload.json()["ingest_id"]
+
+    trigger = api_client.post(
+        f"/artefacts/{ingest_id}/trigger",
+        headers=AUTH,
+        json={
+            "doc_type_code": "PURCHASE_REGISTER",
+            "period_start": PERIOD_START, "period_end": PERIOD_END, "gstin": GSTIN,
+        },
+    )
+    assert trigger.status_code == 422, trigger.text
+    detail = trigger.json()["detail"]
+    assert detail["kind"] == "INVALID"
+    assert detail["constraint"] == "gstin_check"
+
+
+def test_resubmitting_a_document_supersedes_and_returns_202(
+    api_client: TestClient, tenant_a: SeededTenant
+) -> None:
+    """Through HTTP: a re-triggered artefact is a correction, not an error.
+
+    This test asserted a 409 when it was written, because the extraction path
+    inserted blind and the second trigger could only fail. Superseding
+    (`src/silver/supersede.py`) is the actual fix for the E2E finding — the
+    409 mapping below is what remains for the case the index still catches.
+    """
+    entity_id = uuid.uuid4()
+    data = (
+        (SAMPLES / "A4.01_Cost_Sharing_Agreement.pdf").read_bytes()
+        + b"\n%% run " + uuid.uuid4().hex.encode() + b"\n"
+    )
+    upload = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={"entity_id": str(entity_id), "document_type": "COST_SHARING_AGREEMENT"},
+        files={"file": ("csa.pdf", data, "application/pdf")},
+    )
+    assert upload.status_code == 201, upload.text
+    assert upload.json()["deduplicated"] is False
+    ingest_id = upload.json()["ingest_id"]
+
+    body = {"doc_type_code": "COST_SHARING_AGREEMENT"}
+    first = api_client.post(f"/artefacts/{ingest_id}/trigger", headers=AUTH, json=body)
+    assert first.status_code == 202, first.text
+    assert first.json()["status"] == "ACCEPTED"
+
+    second = api_client.post(f"/artefacts/{ingest_id}/trigger", headers=AUTH, json=body)
+    assert second.status_code == 202, second.text
+    assert second.json()["status"] == "ACCEPTED"
+    assert second.json()["batch_id"] != first.json()["batch_id"], (
+        "a re-extraction is its own batch — reusing the first batch_id would "
+        "make the two readings indistinguishable in the manifest"
+    )
+
+
+def test_a_conflict_is_409_with_constraint_context(
+    api_client: TestClient, tenant_a: SeededTenant, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """409, not 422, and not the opaque 500 this used to be.
+
+    Supersede removed the routine cause of a unique violation but not the
+    possibility (two concurrent dispatches can still race past
+    `close_current`'s `FOR UPDATE`). A client's correct response to a
+    CONFLICT differs from INVALID — do not resend these bytes, versus fix the
+    value and resend — so the two must not collapse into one status. The
+    violation is faked because the race is not deterministically provokable;
+    the status mapping is what is under test.
+    """
+    upload = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={"entity_id": str(tenant_a.entity_id), "document_type": "LUT"},
+        files={"file": ("lut.pdf", (SAMPLES / "A5.01_LUT_Letter_of_Undertaking.pdf").read_bytes(),
+                        "application/pdf")},
+    )
+    assert upload.status_code == 201, upload.text
+    ingest_id = upload.json()["ingest_id"]
+
+    async def _raise_unique(*args: object, **kwargs: object) -> object:
+        raise psycopg.errors.UniqueViolation(
+            'duplicate key value violates unique constraint '
+            '"entitlement_instrument_current_uq"'
+        )
+
+    monkeypatch.setattr("src.dispatch.trigger.dispatch_load", _raise_unique)
+
+    resp = api_client.post(
+        f"/artefacts/{ingest_id}/trigger", headers=AUTH, json={"doc_type_code": "LUT"}
+    )
+    assert resp.status_code == 409, resp.text
+    detail = resp.json()["detail"]
+    assert detail["kind"] == "CONFLICT"
+    # `constraint` is None here and that is correct, not a gap: an exception
+    # constructed in Python carries no server `Diagnostic`, so there is
+    # nothing to lift. That the diagnostic fields ARE carried through when
+    # Postgres actually raises is gated by
+    # `test_trigger_is_422_with_constraint_context_when_the_database_refuses_a_value`,
+    # which provokes a real domain-check violation.
+    assert detail["constraint"] is None
