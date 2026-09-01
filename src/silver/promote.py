@@ -209,6 +209,53 @@ class SilverPromotionService:
             )
 
             for doc in result.documents:
+                # SUPERSEDE, not blind insert — the ERP upload E2E suite's
+                # GTA_INVOICE_CONSIGNMENT_NOTE finding (2026-09-01): this loop
+                # always inserted unconditionally, so a second ingest of the
+                # SAME document had to violate `transaction_document_natural_
+                # key_uq` (tenant migration 007). The bug affects every
+                # archetype-1 type, CSV or PDF, equally — only the PDF path
+                # (BILL_OF_ENTRY, GTA_INVOICE_CONSIGNMENT_NOTE) had ever
+                # actually been exercised twice with the same natural key,
+                # because it only became REACHABLE once shared migration 043
+                # corrected the catalogue's routing.
+                #
+                # Keyed on exactly `transaction_document_natural_key_uq`'s
+                # columns, in the index's own expression — the
+                # `src/silver/supersede.py` rule (a lookup that disagrees
+                # with the index does not prevent a duplicate, it just moves
+                # where one appears) applied inline rather than through that
+                # module's `close_current`, because the index's key is a
+                # `COALESCE(counterparty_gstin, '')` EXPRESSION, not a bare
+                # column, and `close_current`'s key mapping only compares
+                # plain columns.
+                prior_row = await (
+                    await conn.execute(
+                        sql.SQL(
+                            "SELECT doc_id FROM {}.transaction_document"
+                            " WHERE entity_id = %s AND doc_type = %s"
+                            "   AND COALESCE(counterparty_gstin, '')"
+                            "     = COALESCE(%s, '')"
+                            "   AND doc_number = %s"
+                            "   AND superseded_at IS NULL"
+                            " FOR UPDATE"
+                        ).format(sql.Identifier(silver)),
+                        (entity_id, spec.doc_type, doc.counterparty_gstin,
+                         doc.doc_number),
+                    )
+                ).fetchone()
+                prior_doc_id = cast("uuid.UUID | None", prior_row[0]) if prior_row else None
+
+                if prior_doc_id is not None:
+                    await conn.execute(
+                        sql.SQL(
+                            "UPDATE {}.transaction_document"
+                            " SET superseded_at = now()"
+                            " WHERE doc_id = %s AND superseded_at IS NULL"
+                        ).format(sql.Identifier(silver)),
+                        (prior_doc_id,),
+                    )
+
                 doc_id = uuid.uuid4()
                 await conn.execute(
                     sql.SQL(
@@ -218,9 +265,9 @@ class SilverPromotionService:
                             doc_number, doc_date, counterparty_gstin,
                             counterparty_name, total_taxable_value,
                             total_tax_value, total_value, currency, attributes,
-                            valid_from, bronze_ingest_id
+                            valid_from, bronze_ingest_id, supersedes_doc_id
                         ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,
-                                  %s, %s, %s, %s)
+                                  %s, %s, %s, %s, %s)
                         """
                     ).format(sql.Identifier(silver)),
                     (doc_id, batch_id, entity_id, spec.doc_type,
@@ -229,7 +276,7 @@ class SilverPromotionService:
                      doc.counterparty_name, doc.total_taxable_value,
                      doc.total_tax_value, doc.total_value, doc.currency,
                      json.dumps(doc.attributes),
-                     doc.doc_date, ingest_id),
+                     doc.doc_date, ingest_id, prior_doc_id),
                 )
                 for line in doc.lines:
                     await conn.execute(

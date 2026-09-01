@@ -32,6 +32,7 @@ from src.catalogue import (
     Provenance,
     RegistryFacts,
     SchemaKind,
+    derive_document_schema,
     derive_document_schemas,
 )
 from src.silver.registers.spec import ENVELOPE_COLUMNS
@@ -107,6 +108,38 @@ def test_the_catalogue_matches_the_derivation(
         if s.fields
     }
     assert actual_fields == expected_fields
+
+
+def test_every_pdf_extraction_type_publishes_document(
+    admin: psycopg.Connection[tuple[object, ...]],
+) -> None:
+    """`dispatch_mechanism` is authoritative for the upload shape.
+
+    The regression this guards: `derive_document_schema` used to pick a
+    source by "which one happens to be non-empty" rather than by
+    `dispatch_mechanism`, so five `PDF_EXTRACTION` types
+    (`BILL_OF_ENTRY`, `FIRC_BRC_REGISTER`, `FORM_15CA_15CB`,
+    `GTA_INVOICE_CONSIGNMENT_NOTE`, `PAYROLL_TDS_REGISTER`) published
+    `TABULAR` off a leftover `RegisterSpec`/`field_contract` cell while the
+    real dispatch path (`src/dispatch/router.py`) sent the artefact to
+    `pypdf` — the ERP upload E2E suite's finding (2026-09-01), and shared
+    migration `043`'s fix. `test_the_catalogue_matches_the_derivation` above
+    already proves the seeded rows match today's derivation; this test proves
+    the derivation ITSELF cannot regress into that bug again, independent of
+    what happens to be seeded — mutate `derive_document_schema` to consult
+    `SPEC_BY_DOC_TYPE`/`field_contract` before `dispatch_mechanism` and this
+    is what catches it, not the DDL gate below (which only ever sees a
+    Silver table for the three that still happen to have one).
+    """
+    for facts in _facts(admin):
+        if not facts.in_scope or facts.dispatch_mechanism != "PDF_EXTRACTION":
+            continue
+        schema = derive_document_schema(facts)
+        assert schema.schema_kind is SchemaKind.DOCUMENT, (
+            f"{facts.doc_type_code}: dispatch_mechanism=PDF_EXTRACTION but "
+            f"published schema_kind={schema.schema_kind.value!r} — a tenant "
+            f"following this contract would upload the wrong shape"
+        )
 
 
 def test_every_in_scope_type_is_published(

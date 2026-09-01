@@ -218,6 +218,18 @@ async def test_roll_forward_replaces_the_pin_and_never_touches_the_prior_row(
     """
     doc_type = "ADVANCE_RECEIPT_REGISTER"  # untouched by other pin tests
 
+    # Read the actual CURRENT release rather than assuming "v2" — releases
+    # are published outside this test's control (`scripts/publish_schema_
+    # release.py`, run by an operator or another team's environment setup),
+    # so a hardcoded version string is a test bug waiting for the next
+    # publish. What must hold is "rolled forward to whatever IS current",
+    # not "rolled forward to the release that was current when this test was
+    # written". v3 broke exactly this assumption the first time it was
+    # published, which is how this was found.
+    (current_version,) = admin.execute(
+        "SELECT version FROM platform_ref.schema_release WHERE status = 'CURRENT'"
+    ).fetchone()
+
     async with app_pool.transaction(tenant_a.ctx, Role.INGEST) as conn:
         await conn.execute(
             sql.SQL(
@@ -236,10 +248,10 @@ async def test_roll_forward_replaces_the_pin_and_never_touches_the_prior_row(
         app_pool, tenant_a.ctx, doc_type_code=doc_type, store=api_object_store,
     )
     assert rolled is not None
-    assert rolled.release_version == "v2"
+    assert rolled.release_version == current_version
 
     after = await current_pin(app_pool, tenant_a.ctx, doc_type_code=doc_type)
-    assert after is not None and after.release_version == "v2"
+    assert after is not None and after.release_version == current_version
 
     # The v1 row must still be there — insert-only, never edited or replaced.
     rows = admin.execute(
@@ -249,13 +261,13 @@ async def test_roll_forward_replaces_the_pin_and_never_touches_the_prior_row(
         ).format(sql.Identifier(tenant_a.ctx.bronze_schema)),
         (doc_type,),
     ).fetchall()
-    assert [r[0] for r in rows] == ["v1", "v2"]
+    assert [r[0] for r in rows] == ["v1", current_version]
     # NULL, not the artefact that (falsely) would imply this pin came from an
     # upload — migration 028's exact case for a nullable column.
     assert rows[1][1] is None
 
     body = api_object_store.get(bucket=rolled.object_bucket, key=rolled.object_key)
-    assert json.loads(body)["release"] == "v2"
+    assert json.loads(body)["release"] == current_version
 
 
 async def test_roll_forward_twice_is_a_no_op(

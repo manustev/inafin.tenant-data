@@ -1372,3 +1372,426 @@ needs a branch, stop and fix the archetype (ARCHITECTURE.md §6).
 `scripts/gen_registry_seed.py` imports the parser, so a contract that would fail
 at ingestion cannot be committed.
 
+
+
+---
+
+## Archived from `CLAUDE.md` on 2026-09-01 (fifteenth session)
+
+Same reason as the first archival above: the per-session narrative sections
+(eleventh through fourteenth) were making the file loaded into every
+conversation too large. Nothing below is superseded by being archived — it
+is the verbatim record of what was built, verified, and decided in those
+four sessions. `CLAUDE.md` keeps only the durable rules and the current
+open backlog; the "Built and working" table there is the up-to-date index.
+
+### Fourteenth session (2026-08-24) — the manual local trigger (item #2 of 3)
+
+**`tenantctl trigger` — a real CLI command, verified against the live
+cluster, not just written.** `src/cli.py` gained `cmd_trigger` /
+`_run_trigger`: `tenantctl trigger <slug> <ingest_id> <doc_type_code>
+[--period-start] [--period-end] [--gstin]` dispatches one already-uploaded
+artefact from a terminal — the actual "on local, manual trigger" the
+three-item plan named. Manually verified end to end against the live
+cluster: uploaded a real `PURCHASE_REGISTER` CSV, ran the CLI, watched it
+write a real `ingest_batch` row and print `ACCEPTED (REGISTER_LOADER)
+batch=<uuid>`, exit 0; a wrong `ingest_id` and a missing required field both
+produce a clean one-line `ERROR:` and exit 1, no traceback.
+
+**The route and the CLI cannot silently diverge, because they are now the
+same function.** Before this session, `POST /artefacts/{id}/trigger`'s
+entire "insert `load_trigger`, read the ledger, infer content format, fetch
+bytes, call `dispatch_load`, fold `NoDispatchMechanismError`/
+`ValidationRejected` into a recorded-not-dispatched outcome" sequence lived
+only inside the route handler. Extracted to `src/dispatch/trigger.py`'s
+`record_and_dispatch_trigger` — the route was refactored to call it (net
+smaller: five now-unused imports dropped,
+`MissingDispatchFieldError`/`UnknownExtractorError`/plain `ValueError` all
+fold into one `except ValueError` since the first two are subclasses of the
+third), and `cmd_trigger` calls the identical function. All 17 pre-existing
+`test_api_ingest.py` trigger tests passed unchanged after the refactor —
+proof the extraction changed nothing about the route's behavior.
+
+**The module docstring states a real design rule, not just prose**: caller
+mistakes (unknown `ingest_id`, a missing required field, an unrecognised
+extension) RAISE, for each caller to map onto its own surface (HTTP
+404/422, or a CLI exit code + stderr line); legitimate outcomes of a
+well-formed trigger (`UNROUTED` — no loader built yet; `QUARANTINED` — the
+document's own content failed validation) fold into
+`TriggerOutcome.status`, never raise, because `load_trigger`'s row is real
+and durable either way. Mutation-checked by swapping the fold for a
+re-raise: failed exactly the 2 tests naming that split, plus the
+pre-existing route test for the same case (`test_trigger_reports_unrouted_
+for_a_type_with_no_dispatch_mechanism`) — 3 failures, all expected, nothing
+else. Restored.
+
+**New tests**: `tests/handoff/test_trigger_dispatch.py` (5 tests, calling
+`record_and_dispatch_trigger` directly — the well-formed path, the two
+RAISE shapes, the two FOLD shapes) and `tests/handoff/test_cli_trigger.py`
+(4 tests, run as real subprocesses via `python -m src.cli trigger` against
+the live cluster — success, unknown ingest_id, missing field, and a parity
+test that the CLI's dispatch produces a real `ingest_batch` row queryable
+the same way the HTTP route's would be).
+
+**Scope decision, asked and answered**: the original #2 also named a
+"scheduled job" for production use. Deliberately NOT built this session —
+Steve confirmed stopping at the manual trigger. The design trap flagged when
+#2 was first scoped still stands and is unchanged: `load_trigger` has no
+status/claimed-at column BY DESIGN (Bronze is insert-only, invariant 6), so
+a poller's "already processed" query has to be derived from whether a
+matching `ingest_batch`/quarantine exists, never from a status flag added to
+`load_trigger` itself. See backlog item 10 below — still where this picks
+up.
+
+**Verified**: `make lint`/`make typecheck` clean, full suite 602 passed / 2
+skipped (up from 593). No migration — this session touched only Python
+(`src/cli.py`, `src/dispatch/trigger.py`, `src/api/routes_ingest.py`).
+
+### Thirteenth session (2026-08-24) — Bronze intake gaps (item #1 of 3)
+
+Closed the three intake gaps flagged when the three-item plan (upload→Bronze;
+trigger; schema/sample download — the last one is items #3, above) was first
+scoped. #2 (trigger/scheduled job) is still open — this session did #1 only.
+
+**A real gap, closed: nothing validated `document_type` before this
+session.** `BronzeIngestionService.receive` defaulted `document_type` to
+`"PURCHASE_INVOICE"` — one of the five retired Phase-1 codes that predate
+`platform_ref.document_type` and are not even ROWS in it — and the only
+guard was the ledger's FK against `platform_ref.universal_master`'s free
+132-value vocabulary, not the 125-row in-scope registry. A tenant could
+upload a file, get a 201, and the artefact would sit in Bronze forever,
+undispatchable, discovered only much later if at all.
+
+Fixed at the narrowest point that closes it for every caller, not just the
+HTTP route: `document_type` lost its default (now a required keyword
+argument) and `BronzeIngestionService.receive` gained
+`_check_document_type_in_scope`, run right after `check_file` and before
+hashing — a type that is not a row, or is a row with `in_scope = false`, is
+refused with a distinct message for each case. A type that IS in-scope but
+has no `dispatch_mechanism` yet (`GSTR_1` — Stream A, GSTN-API-polled, never
+upload-triggered) is correctly ACCEPTED: this gate checks registry
+membership, not dispatch readiness, and conflating the two would refuse
+every one of the 38 UNSPECIFIED types the twelfth session's catalogue work
+found.
+
+Every existing caller that relied on the removed default was updated to
+declare a real type explicitly (`tests/handoff/test_handoff.py`,
+`test_outcome_gate.py`, `test_intake_gate.py` — matched to what each test's
+payload actually represents, not defaulted to one code everywhere).
+
+**Provenance**: the upload route now passes `received_from="PORTAL"`
+explicitly rather than relying on the service's generic `"upload"` default —
+worth doing now, before a second caller (a source connector pulling from
+GSTN/ICEGATE, `src/connectors/`, still uncalled) starts writing through the
+same service and this column becomes load-bearing for telling the two apart.
+
+**`POST /artefacts/batch`, new.** A tenant drops several files of the SAME
+`document_type` in one request; each file is processed independently through
+the same `BronzeIngestionService.receive` — one bad file (wrong extension, an
+unrecognised type) never fails the files around it. Always returns 200; the
+body's `items` list carries the real per-file outcome, the same "status line
+can't represent a mix, the body must" shape `StatusResponse.status`'s
+PARTIAL/QUARANTINED vocabulary already uses one level down, at row grain.
+**Deliberately not mixed-type**: `document_type` is one form field, not a
+parallel array keyed to `files` — a parallel-array multipart shape is exactly
+the kind of surface that silently misaligns (file 3 gets file 4's type) with
+nothing but manual testing to catch it. A portal batching several document
+types makes several calls, one per type. Bounded to `MAX_BATCH_FILES = 100`
+so one request cannot hold a connection open indefinitely.
+
+**Mutation-checked, three gates**: removing the document-type check call
+failed the 3 targeted gate tests (plus 2 unrelated intake-gate tests that
+share a literal payload byte-string with the now-unrejected upload — a real
+but separate test fragility, not a production bug, left as-is since the
+un-mutated suite is green); flipping the in-scope branch failed exactly
+`test_an_out_of_scope_registry_row_is_refused`; removing
+`received_from="PORTAL"` failed exactly the provenance test; removing the
+batch route's per-file try/except failed exactly
+`test_batch_upload_one_bad_file_does_not_fail_the_others`. All restored.
+
+**Verified**: `make lint`/`make typecheck` clean, full suite 593 passed / 2
+skipped (up from 582) — 4 new gate tests
+(`tests/handoff/test_document_type_gate.py`) plus 6 new route-level tests
+in `test_api_ingest.py` (unknown/missing type, provenance, 3 batch-route
+tests). No migration needed — this session touched only Python.
+
+**Not built this session**: nothing outstanding from the original three-gap
+list — 1a (validation), 1b (multi-file), 1c (provenance) are all closed. #2
+(trigger/scheduled job — a CLI dispatch command, auto-trigger on upload, and
+the `load_trigger` worker-poller shape discussed but not built) is next.
+
+### Twelfth session (2026-08-24) — the published schema catalogue
+
+Built the whole of item #3 from the three-item plan (portal upload → Bronze;
+trigger; **schema/sample download**). Steve's design, not the one originally
+proposed: schema definitions live in `platform_ref`, the FILES live in MinIO
+with the release in the object key, and a tenant is PINNED to the release they
+downloaded at first upload so a later platform release cannot change the
+contract under an integration in flight. `inafin-api` builds the read API on
+top — it already has the grants, and `API-CONTRACT.md` now specifies it.
+
+**The catalogue is derived, never written.** `src/catalogue/document_schema.py`
+projects four existing sources of truth into one published shape and records
+which one each row came from: `provenance` DERIVED (a `RegisterSpec` or
+`sales_register.py`, both already gated against live DDL), DECLARED (a
+`field_contract`/`extraction_spec` grammar cell, parsed by the same parser
+ingestion uses), or PENDING (nothing published yet — an honest empty, so the
+portal can say "sample only" instead of rendering a blank table). 125 types,
+447 fields. `description` is nullable and deliberately unset: no column
+comment exists anywhere in this schema, and writing 447 prose descriptions
+from column names is the invented-content mistake this file already names once.
+
+**A generator hazard was found by tripping over it, and is now guarded.**
+Running `gen_registry_seed.py` silently rewrote applied, checksum-pinned
+migrations `004` and `023` — both legitimately differ from a fresh generation
+because later migrations (`014`, `033`) corrected them and the corrections were
+written back into the CSV. The fifth session hit this too and caught it by eye.
+`_emit` now refuses to rewrite any generated file whose content would change,
+and `KNOWN_SEALED` names those two with their reasons, so a routine run stays
+quiet about them while ANY other drift is a hard error.
+
+**A REAL LATENT BUG, found by a gate rather than by reading — flag this to
+`inafin-api`.** Migration `030`'s entire ambient `platform_ref` grant list —
+every read AND the onboarding writes — **has never worked**. `app_login` held
+the table privileges but was never granted `USAGE ON SCHEMA platform_ref`, so
+every one of them was unreachable. True since 2026-08-14; fixed by shared
+`038`. The seventh session's verification missed it because it queried
+`information_schema.role_table_grants`, which correctly showed every GRANT as
+present — **a recorded privilege is not a usable one**. `app.v1_tenant_
+directory` worked throughout (schema `app` grants USAGE to PUBLIC), which is
+exactly why tenant resolution appeared to function while everything after step
+one did not. The gate that caught it opens a real bare `app_login` connection
+and issues a real `SELECT`; that is the shape to copy.
+
+**Other things worth knowing:**
+
+- **`v1_schema_pin` was created and then withdrawn one migration later**
+  (tenant `028` then `029`). `app.apply_tenant_grants` grants Bronze objects
+  with `relkind = 'r'` — tables only; Silver has a second loop for `v1_` views,
+  Bronze has none. A hand-written GRANT would not survive either, since step 1
+  is `REVOKE ALL ON ALL TABLES` (views included), re-asserted every provision.
+  Adding a Bronze view loop would change the isolation matrix for every tenant
+  to serve one internal helper — not worth it. The DISTINCT ON now lives in
+  `current_pin`, the single place callers already went through.
+- **`ANOMALY_KEY.json` is never published.** It is the expected-results oracle
+  for the Category B mock set (19 seeded anomalies); publishing it to the
+  tenants whose data those anomalies exist to catch would hand over the answer
+  sheet. `_EXCLUDED_FILENAMES` is the defence and
+  `test_publish_schema_release.py` pins it — including a case that plants the
+  oracle inside a ref folder, because the "it lives at the root" layout is an
+  accident that a regenerated sample set could undo.
+- **B4.03/B4.04 samples are correctly skipped** — they belong to
+  `inafin-gst-corpus`, confirmed by the publisher reporting them as unmapped
+  rather than silently dropping them.
+- Steve chose to publish the reference samples as-is (193 files). They are
+  synthetic, and the mock Category B set contains deliberate anomalies — that
+  was a flagged, accepted call, not an oversight.
+
+**Mutation-checked**: removing the `ensure_schema_pin` call failed exactly the
+3 pin tests (the broken-store test correctly still passed); emptying
+`_EXCLUDED_FILENAMES` failed exactly the 2 name-based oracle tests; corrupting
+one published field name failed both catalogue gates independently; revoking
+the `038` USAGE failed exactly the grant gate. All restored.
+
+**Two test weaknesses found and fixed while writing these**: identical CSV
+payloads meant "second upload" was being deduped at intake and never reached
+the pinning code, so that test was passing for the wrong reason; and a test
+asserting an UNSPECIFIED type pins nothing was wrong about the design, not the
+code (all 125 in-scope types get a schema file — a PENDING one still tells a
+tenant something useful).
+
+**Still open on #3**: nothing built here serves the files over HTTP — that is
+`inafin-api`'s half, specified in `API-CONTRACT.md`. Rolling a tenant forward
+to a new release has no operator command yet (it is an INSERT into
+`schema_pin`, deliberately). Field `description`s are unwritten and want a
+human, not a generator.
+
+### Eleventh session (2026-08-24) — what actually happened
+
+The stack was down from the tenth session (Docker Desktop crash on the host,
+all four containers `Exited (255)`). `docker compose up -d` brought it back;
+the postgres container was *recreated* (image pull), **the named volume and
+all data survived** — verified by listing `tenant_db`'s schemas before
+touching anything.
+
+Then the tenth session's unfinished business, item `0g`, in order:
+
+1. `make migrate` applied shared `034` + tenant `027` to both tenants for the
+   first time, zero drift.
+2. `tests/conformance/test_gstn_returns_gstr3b.py` ran for the first time —
+   8 passed. (The handoff said "12 tests"; it is 8. No test is missing, the
+   count in the note was wrong.)
+3. Full suite surfaced exactly one failure, the expected one:
+   `test_register_specs.py::test_the_catalog_covers_every_a1_type_except_
+   sales_register`. `GSTR_3B` needed adding to that test's named-exception
+   set, the same fix `GSTR_2B` needed — its scope is A1 coverage, so a third
+   named non-A1 exception is correct, not a widened assertion.
+4. **Mutation-checked `GSTR_3B`'s two vocabulary gates, which found a real
+   gap.** The ITC `ty` gate is covered (breaking it failed exactly
+   `test_unrecognised_itc_type_is_rejected`). The Table 5 inward-supply `ty`
+   gate was **not covered by anything** — breaking it failed zero tests. Added
+   `test_unrecognised_inward_supply_type_is_rejected`, re-broke the gate,
+   confirmed exactly that one test fails, restored.
+
+**GSTR_3B is now verified, not merely written** — the caveat the tenth
+session's handoff insisted on is discharged.
+
+### Mutation checking and the Archetype 2 decision, from earlier sessions
+
+### The mutation check is not a formality
+
+Three real defects were found by it this session, none of which any passing test
+showed: a negative gate that COMMITTED its probe row when the constraint it
+guarded was dropped (so restoring the constraint then failed); an isolation test
+that never re-migrated the second tenant, so the leak it claimed to detect was
+unreachable; and a natural-key test that pinned the loader's lookup while leaving
+the unique index free to drift. Break the thing, confirm exactly one test fails,
+restore.
+
+**Do NOT build Archetype 2** (`register_snapshot` + `register_line`). That was
+the previous plan and it is withdrawn. **This still stands as of 2026-08-11**
+— the fourth session added 3 new types to the EXISTING flat
+`RegisterSpec`/`RegisterLoader` mechanism (tenant migration `020`:
+`payroll_tds_register`, `firc_brc_register`, `form_15ca_15cb`), the same
+mechanism the 23 Group A1 registers already use, not the withdrawn generic
+archetype-2 table pair below. Two reasons the withdrawal itself still holds,
+both worth knowing:
+
+- `PERIODIC` is a cadence, not a shape. Archetype 2's 22 `STRUCTURED` types
+  include `AMAZON_MTR`, `CREDITOR_AGEING_REPORT`, `STOCK_REGISTER` and
+  `PAYROLL_TDS_REGISTER`, which share no columns. It was cut on the wrong axis.
+- The claim in the old handoff that "every archetype-2 type is `PERIODIC`" is
+  **false**. Of the 27 in Operational scope, 24 are `PERIODIC` and 3 are
+  `CONTINUOUS` (`A7.04 FORM_15CA_15CB`, `B6.01 DGFT_EBRC`, `D2.01 FIRC`). All
+  three are individual certificates, not period registers, and look
+  mis-archetyped. Verify registry claims against the CSV; that one was wrong.
+
+
+---
+
+## Fifteenth session (2026-09-01) — the ERP upload E2E integration findings
+
+An integration test suite run across `inafin-tenant-data`, `inafin-api`, and
+`inafin-portal` surfaced 140 Bronze→Silver trigger errors across 70 document
+types. Four findings, triaged and closed in order; `API-CONTRACT.md` was
+updated as the changes landed since it is the boundary `inafin-api` reads.
+
+**P0 #2 — DB integrity errors reached the caller as opaque HTTP 500s.**
+`POST /artefacts/{id}/trigger` caught only `ForeignKeyViolation` and
+`ValueError`; `CheckViolation`/`UniqueViolation`/`DataError` all escaped.
+Fixed with two new error types (`src/core/errors.py`):
+`UnknownArtefact` (no such artefact — scoped to exactly the `load_trigger`
+INSERT's own FK, not the whole trigger call, which is a narrower and more
+correct catch than what it replaced — a Silver-side FK violation used to be
+misreported as "no artefact") and `SilverConstraintViolation` (carries
+`kind` — CONFLICT for a unique violation, INVALID for everything else —
+plus `constraint`/`column`/`table` off psycopg's `Diagnostic`). The route
+now returns 404/409/422 instead of 404/422/500; `tenantctl trigger` prints
+one clean `ERROR: KIND: message [constraint=...]` line instead of a
+traceback. A mutation check on the FK-scoping caught a real gap the first
+pass missed — nothing had ever tested that a Silver-layer FK violation
+(as opposed to `load_trigger`'s own) does NOT get reported as 404.
+
+**P0 #1 — the published schema was coarser than what Silver enforces.**
+`document_type_field.data_type` only ever said "text" or "decimal" — never
+that `supplier_gstin` is `platform_ref.gstin` (PAN-embedded regex),
+`gst_rate` is bounded 0–100, `itc_eligibility` accepts four values, or that
+`currency`/`dr_cr` are fixed-width. A client generating a file valid against
+the downloaded schema could still be refused at ingestion. **Rejected the
+literal fix** (widen `Kind` with `GSTIN`/`FIXED_WIDTH` members) because it
+would hand-restate a rule the database already owns, the exact mistake
+`registers/spec.py`'s docstring already argues against for the same reason.
+Built instead: `src/catalogue/field_constraints.py` derives constraint
+metadata straight from `pg_constraint`/`pg_type` — never hand-written.
+Shared migration `041` adds eight columns to `document_type_field`
+(`sql_domain`, `pattern`, `allowed_values`, `min_value`/`max_value`,
+`max_length`, `numeric_precision`/`numeric_scale`) plus a new
+`document_type_rule` table for constraints that touch more than one column
+(one row exists today: `sales_register_line`'s IGST-positive-implies-
+CGST/SGST-zero rule). `042` is the generated seed. `gen_field_constraints.py`
+follows `gen_registry_seed.py`'s pattern (refuses to silently rewrite an
+applied migration) but is a genuinely new shape in this repo: it needs a
+LIVE cluster to derive from, since there is no offline rendering of
+`pg_constraint`. `tests/conformance/test_field_constraints.py` re-derives
+against live DDL and fails on drift, same shape as
+`test_register_specs.py::test_spec_matches_the_table`. Coverage: 152
+domain-backed fields, 17 patterns, 18 vocabularies, 14 bounded, 5
+fixed-width, across the 33 DERIVED types. **A near-miss worth remembering**:
+the first cut of the constraint parser silently dropped `tax_rate`'s 0–100
+bounds — `(0)::numeric` normalises to `(0)`, parens and all, after cast
+stripping, and the first numeric-literal regex didn't allow the parens. Only
+caught by dumping every live constraint through the parser and reading the
+unparsed list by eye, not by a test that was there from the start.
+
+**P1 — PDF archetype natural-key collisions, initially misdiagnosed.** The
+finding suspected the reference corpus reused PDFs across document types.
+It does not: 50 specimens, 50 distinct SHA-256 hashes, exactly 1:1 with the
+50 `PDF_EXTRACTION` types. The real cause: three of the five archetype
+services (`entitlement`, `proceeding_event`, `entity_master`) already had a
+correct `supersede()`, and all five tables already carried a `supersedes_*`
+column and a partial `*_current_uq` index — the schema was designed for
+this from the start. What no caller ever had was the LOOKUP: nothing
+answered "which row is current for this document", so `src/extraction/
+base.py` could only ever call `record()`, a blind INSERT, so the second
+dispatch of ANY document had to violate the unique index. Fixed with one
+shared helper, `src/silver/supersede.py`'s `close_current` (a `FOR UPDATE`
+find-and-close against the index's own key columns, in the same transaction
+as the insert), wired through a new `record_or_supersede` on all five
+services, and `base.py`'s five call sites switched to it. Verified against
+the live cluster: three dispatches of one artefact produced a correct
+three-row chain (`fa8eb0 → 0736c9 → 1e63b6`, exactly one current, each
+pointing at the one it replaced). A mutation check caught the sharpest
+failure mode directly: closing the prior row WITHOUT setting
+`supersedes_*` satisfies the unique index and looks fine, but silently
+loses the bitemporal chain — the chain-shape assertion (not just "the
+second call succeeded") is what catches that.
+
+**P2 (pinned-schema metadata blank)** — `inafin-api`'s, not this repo's;
+flagged back to them rather than fixed here.
+
+**Step 4 — carrying the new constraint data to a client.** `_render_schema`
+(`scripts/publish_schema_release.py`) only ever projected
+`ordinal/field_name/scope/data_type/required/source_label`; migration 041's
+columns would have reached no published file at all without this. Added a
+per-field `constraints` object (omitted, not null, when a field carries
+none — DECLARED types own no table and therefore carry none at all) and a
+per-type `rules` array. Published and promoted `v2` — CURRENT as of this
+session, `v1` kept (never deleted; a superseded release is not a rolled-back
+one). **A genuinely new operator command**: `tenantctl reschema <slug>
+[--doc-type CODE]`, backed by `src/catalogue/pin.py`'s new
+`roll_forward`/`roll_forward_all`. This is the exact case migration `028`
+made `schema_pin.pinned_by_ingest_id` nullable for ("NULL only for a
+deliberate roll-forward"), and it had no caller until this session. Steve's
+call, explicit and worth recording: no real clients exist anywhere yet, so
+both dev tenants (`acme`, `globex`) were rolled forward unconditionally
+rather than building any compatibility path — the right call given the
+constraint metadata was simply never published before `v2`, so there was
+nothing on `v1` worth protecting a tenant's continued read of.
+
+**Mutation-checked throughout, same discipline as every prior session**: 2
+mutations on the trigger error mapping (dropping the CONFLICT branch,
+dropping the INVALID branch) plus one that found a real gap (the FK-scoping
+test didn't exist until a mutation on it failed nothing); 4 mutations on the
+constraint derivation/gate (corrupt a stored vocabulary, null a domain,
+drop the envelope filter, plant an envelope rule — one of the four, planting
+a rule with an already-published column, needed a purpose-built test that
+didn't exist before this session); 3 on supersede (disable the lookup
+entirely — 2 failures; close without linking — 1 failure, the sharp one; drop
+`FOR UPDATE` — correctly 0 failures, since no serial test suite can provoke
+a concurrent race, and this is documented rather than pretended away); 3 on
+`roll_forward`/`roll_forward_all` (2 real regressions caught; removing the
+Python-side idempotency check correctly found nothing, because
+`schema_pin_release_uq` already guarantees the no-op at the DB layer — the
+Python check only saves a network round-trip, not correctness).
+
+**Verified**: `make lint`/`make typecheck` clean throughout, full suite
+**630 passed / 2 skipped / 0 failed** (up from 602 at the end of the
+fourteenth session), `make migrate` zero drift — all against the live
+shared cluster, which was restored mid-session by an external DB issue and
+re-verified rather than assumed. Two new shared migrations (`041`, `042`);
+no tenant migration. `API-CONTRACT.md` updated: the new
+`document_type_field` constraint columns and `document_type_rule`, the
+`409`/`422`/`404` trigger contract (including the `404`→`422` behaviour
+change for a Silver-side FK violation), and the `v2`/`tenantctl reschema`
+section. Not yet done: giving `inafin-api`/`inafin-integration-tests`
+explicit client-facing change instructions (next).

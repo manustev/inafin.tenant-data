@@ -177,18 +177,6 @@ _KIND_NAMES: dict[Kind, str] = {
     Kind.BOOLEAN: "boolean",
 }
 
-#: Which `dispatch_mechanism` implies which upload shape, for types where no
-#: field list resolves. Mirrors `src/dispatch/router.py`'s own table — adding a
-#: mechanism there without adding it here leaves types UNSPECIFIED, which
-#: `_check` in the generator reports rather than silently accepting.
-_KIND_BY_MECHANISM: dict[str, SchemaKind] = {
-    "SALES_REGISTER": SchemaKind.TABULAR,
-    "REGISTER_LOADER": SchemaKind.TABULAR,
-    "ARCHETYPE1_PROMOTE": SchemaKind.TABULAR,
-    "PDF_EXTRACTION": SchemaKind.DOCUMENT,
-    "GSTN_JSON_PROMOTE": SchemaKind.JSON,
-}
-
 
 def _from_register_columns(columns: Sequence[Column]) -> tuple[SchemaField, ...]:
     return tuple(
@@ -275,13 +263,36 @@ def _from_extraction_spec(spec: str) -> tuple[SchemaField, ...]:
 def derive_document_schema(facts: RegistryFacts) -> DocumentSchema:
     """One type's published schema.
 
-    Resolution order is strongest-source-first, and it is an order rather than
-    a lookup because several types legitimately carry more than one source:
-    `CREDIT_DEBIT_NOTE_REGISTER` has both a `RegisterSpec` and an archetype-1
-    `field_contract` (the sixth session's `_RETIRED_ARCHETYPE_1_TYPES` finding
-    — both paths would once have accepted it). The RegisterSpec wins here for
-    the same reason `dispatch_mechanism` names REGISTER_LOADER for it: that is
-    the path a real upload actually takes.
+    `dispatch_mechanism` IS the resolution order — not a fallback consulted
+    only once every other source has come up empty, which is what this
+    function did until the ERP upload E2E suite (2026-09-01, sixteenth
+    session) found it publishing `TABULAR` for five `PDF_EXTRACTION` types
+    (`BILL_OF_ENTRY`, `FIRC_BRC_REGISTER`, `FORM_15CA_15CB`,
+    `GTA_INVOICE_CONSIGNMENT_NOTE`, `PAYROLL_TDS_REGISTER`). All five carry a
+    LEFTOVER `RegisterSpec`/`field_contract` cell from an earlier design (three
+    of them predate `dispatch_mechanism` entirely — tenant migration `020`
+    built them as `REGISTER_LOADER` types before the CSV column existed) that
+    the real dispatch path no longer reads: `src/dispatch/router.py` resolves
+    `dispatch_mechanism` fresh, per trigger, straight from the database, and
+    for these five it says `PDF_EXTRACTION` — so a tenant who filled in the
+    published CSV contract had it handed to `pypdf`, which is not a CSV
+    reader, and got `PdfStreamError` wrapped in an opaque HTTP 500.
+
+    `RegistryFacts.dispatch_mechanism` is therefore checked FIRST, and each
+    mechanism looks at only the ONE source that describes what it actually
+    consumes — never "whichever source happens to be non-empty", which is
+    exactly the bug. A `field_contract`/`RegisterSpec` cell left over from a
+    superseded design is now correctly invisible to this derivation once
+    `dispatch_mechanism` says something else runs instead.
+
+    `CREDIT_DEBIT_NOTE_REGISTER` is the type that originally justified a
+    "strongest source wins" reading — the sixth session's
+    `_RETIRED_ARCHETYPE_1_TYPES` finding, which had it accepted by both a
+    `RegisterSpec` AND an archetype-1 `field_contract` at once. That case is
+    still handled correctly here, for the more precise reason: its
+    `dispatch_mechanism` is `REGISTER_LOADER`, so only the `RegisterSpec`
+    branch below is ever consulted — the `field_contract` cell is simply never
+    read for it, not out-competed.
     """
     if not facts.in_scope:
         raise ValueError(
@@ -291,8 +302,21 @@ def derive_document_schema(facts: RegistryFacts) -> DocumentSchema:
         )
 
     code = facts.doc_type_code
+    mechanism = facts.dispatch_mechanism
 
-    if code in SPEC_BY_DOC_TYPE:
+    if mechanism == "REGISTER_LOADER":
+        if code not in SPEC_BY_DOC_TYPE:
+            # A genuine data-integrity failure, not a shape this catalogue
+            # should quietly paper over: `dispatch_mechanism` claims a loader
+            # that does not exist. `scripts/gen_registry_seed.py`'s
+            # `_check_dispatch_mechanism` already refuses to generate a CSV
+            # seed with this mismatch; raising here catches the live-DB path
+            # (`test_schema_catalogue.py`) with the same rule instead of
+            # silently falling through to PENDING/UNSPECIFIED.
+            raise ValueError(
+                f"{code}: dispatch_mechanism=REGISTER_LOADER but has no "
+                f"RegisterSpec entry in src/silver/registers/catalog.py"
+            )
         return DocumentSchema(
             doc_type_code=code,
             schema_kind=SchemaKind.TABULAR,
@@ -300,7 +324,12 @@ def derive_document_schema(facts: RegistryFacts) -> DocumentSchema:
             fields=_from_register_columns(SPEC_BY_DOC_TYPE[code].columns),
         )
 
-    if code == SALES_REGISTER_CODE:
+    if mechanism == "SALES_REGISTER":
+        if code != SALES_REGISTER_CODE:
+            raise ValueError(
+                f"{code}: dispatch_mechanism=SALES_REGISTER but "
+                f"SalesRegisterLoader only ever handles {SALES_REGISTER_CODE!r}"
+            )
         return DocumentSchema(
             doc_type_code=code,
             schema_kind=SchemaKind.TABULAR,
@@ -308,8 +337,8 @@ def derive_document_schema(facts: RegistryFacts) -> DocumentSchema:
             fields=_from_sales_register(),
         )
 
-    if facts.field_contract:
-        fields = _from_field_contract(facts.field_contract)
+    if mechanism == "ARCHETYPE1_PROMOTE":
+        fields = _from_field_contract(facts.field_contract) if facts.field_contract else ()
         return DocumentSchema(
             doc_type_code=code,
             schema_kind=SchemaKind.TABULAR,
@@ -317,12 +346,19 @@ def derive_document_schema(facts: RegistryFacts) -> DocumentSchema:
             fields=fields,
         )
 
-    if facts.extraction_spec:
-        fields = _from_extraction_spec(facts.extraction_spec)
-        # `fields=` with nothing after it is a real value, not an oversight —
-        # the eleven narrative-contract types genuinely have no clean
-        # label:value line (migration 019's header). Published as PENDING with
-        # kind DOCUMENT: "send us the document, we read it as prose."
+    if mechanism == "PDF_EXTRACTION":
+        # Only `extraction_spec` describes a PDF_EXTRACTION intake — a
+        # `field_contract`/`RegisterSpec` cell, even a non-empty one, names a
+        # DIFFERENT mechanism's CSV shape and must not be read here. Three of
+        # the five types this comment's neighbours were named for
+        # (`FIRC_BRC_REGISTER`, `FORM_15CA_15CB`, `PAYROLL_TDS_REGISTER`) have
+        # no `extraction_spec` at all — they are archetype-2's bespoke
+        # per-type table parsers (`src/extraction/register_types.py`), which
+        # this catalogue has no declared field list for (module docstring:
+        # "not label:value-shaped, so there is no extraction_spec for them").
+        # `fields=()` there is the honest answer, not a gap: PENDING/DOCUMENT,
+        # "send us the document, we have no declared column list for it yet."
+        fields = _from_extraction_spec(facts.extraction_spec) if facts.extraction_spec else ()
         return DocumentSchema(
             doc_type_code=code,
             schema_kind=SchemaKind.DOCUMENT,
@@ -330,11 +366,24 @@ def derive_document_schema(facts: RegistryFacts) -> DocumentSchema:
             fields=fields,
         )
 
+    if mechanism == "GSTN_JSON_PROMOTE":
+        return DocumentSchema(
+            doc_type_code=code,
+            schema_kind=SchemaKind.JSON,
+            provenance=Provenance.PENDING,
+            fields=(),
+        )
+
+    # No mechanism at all (not upload-triggered yet), or a value this
+    # function does not recognise. UNSPECIFIED either way — a type with no
+    # working dispatch path has no upload shape to publish, and crashing the
+    # whole catalogue generation over one bad cell would be worse than
+    # reporting it honestly as "not built yet". `_check_dispatch_mechanism`
+    # in the generator (offline, from the CSV) is what actually catches a
+    # genuinely unrecognised mechanism string before it reaches here.
     return DocumentSchema(
         doc_type_code=code,
-        schema_kind=_KIND_BY_MECHANISM.get(
-            facts.dispatch_mechanism, SchemaKind.UNSPECIFIED
-        ),
+        schema_kind=SchemaKind.UNSPECIFIED,
         provenance=Provenance.PENDING,
         fields=(),
     )

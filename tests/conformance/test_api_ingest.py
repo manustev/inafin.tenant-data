@@ -196,6 +196,58 @@ def test_trigger_dispatches_sales_register(
     assert str(batch_publisher.published[0].batch_id) == body["batch_id"]
 
 
+def test_a_quarantined_sales_register_transitions_status_out_of_pending(
+    api_client: TestClient, tenant_a: SeededTenant
+) -> None:
+    """The `inafin_test_01` finding (2026-09-01): a synchronously
+    QUARANTINED trigger left `GET /status` reporting PENDING forever, with no
+    `quarantine_reason` — a client polling for a terminal state timed out.
+
+    Root cause: `SalesRegisterLoader.load` raised `ValidationRejected` on a
+    fatal parse failure with no durable record written anywhere.
+    `record_and_dispatch_trigger`'s `TriggerOutcome.status = "QUARANTINED"`
+    was always correct — that response body was never wrong — but
+    `SilverReader.artefact_outcome` (`GET /status`) looks up
+    `v1_quarantined_artefact` first and found nothing, then
+    `v1_ingest_batch` (also nothing, since no batch is ever created on this
+    path) and fell back to PENDING. `RegisterLoader.load` (the flat
+    REGISTER_LOADER mechanism) has carried the fix — a `_quarantine()` write
+    before the raise — since it was written; `sales_register.py`, the older
+    hand-written loader, never had it.
+
+    Asserted end to end through HTTP, both calls, because the bug was
+    specifically the DISAGREEMENT between what trigger reported and what
+    status reported — a unit test on either loader in isolation would not
+    catch that the two responses used to contradict each other.
+    """
+    entity_id = uuid.uuid4()
+    upload = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={"entity_id": str(entity_id), "document_type": "SALES_REGISTER"},
+        files={"file": ("sr.csv", b"not,the,right,columns\n1,2,3\n", "text/csv")},
+    )
+    assert upload.status_code == 201, upload.text
+    ingest_id = upload.json()["ingest_id"]
+
+    trigger = api_client.post(
+        f"/artefacts/{ingest_id}/trigger",
+        headers=AUTH,
+        json={
+            "doc_type_code": "SALES_REGISTER",
+            "period_start": PERIOD_START, "period_end": PERIOD_END, "gstin": GSTIN,
+        },
+    )
+    assert trigger.status_code == 202, trigger.text
+    assert trigger.json()["status"] == "QUARANTINED"
+
+    status = api_client.get(f"/artefacts/{ingest_id}/status", headers=AUTH)
+    assert status.status_code == 200, status.text
+    body = status.json()
+    assert body["status"] == "QUARANTINED"
+    assert body["quarantine_reason"] is not None and "missing required" in body["quarantine_reason"]
+
+
 def test_trigger_dispatches_archetype1_promote(
     api_client: TestClient, tenant_a: SeededTenant, batch_publisher: RecordingPublisher,
 ) -> None:
@@ -279,6 +331,35 @@ def test_trigger_dispatches_pdf_extraction(
 
     assert len(batch_publisher.published) == 1
     assert str(batch_publisher.published[0].batch_id) == body["batch_id"]
+
+
+def test_trigger_is_422_not_500_for_bytes_that_are_not_a_pdf(
+    api_client: TestClient, tenant_a: SeededTenant
+) -> None:
+    """Defense in depth for the ERP upload E2E finding (2026-09-01): even
+    with the catalogue corrected (migration `043`), a `PDF_EXTRACTION` type
+    can still receive bytes that are not a valid PDF at all — a genuinely
+    corrupt upload, or a client that has not yet re-downloaded the corrected
+    schema. Before `PypdfReader.extract` learned to catch
+    `pypdf.errors.PyPdfError`, this reached the caller as an unhandled
+    `pypdf.errors.PdfStreamError` — an opaque 500 — exactly the shape the E2E
+    suite's `BILL_OF_ENTRY` reproduction hit.
+    """
+    entity_id = uuid.uuid4()
+    upload = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={"entity_id": str(entity_id), "document_type": "LUT"},
+        files={"file": ("lut.pdf", b"not a pdf at all", "application/pdf")},
+    )
+    assert upload.status_code == 201, upload.text
+    ingest_id = upload.json()["ingest_id"]
+
+    trigger = api_client.post(
+        f"/artefacts/{ingest_id}/trigger", headers=AUTH, json={"doc_type_code": "LUT"}
+    )
+    assert trigger.status_code == 422, trigger.text
+    assert "could not read PDF" in trigger.json()["detail"]
 
 
 def test_trigger_reports_unrouted_for_a_type_with_no_dispatch_mechanism(
@@ -563,6 +644,53 @@ def test_resubmitting_a_document_supersedes_and_returns_202(
         "a re-extraction is its own batch — reusing the first batch_id would "
         "make the two readings indistinguishable in the manifest"
     )
+
+
+def test_resubmitting_an_archetype1_pdf_supersedes_and_returns_202(
+    api_client: TestClient, tenant_a: SeededTenant
+) -> None:
+    """`GTA_INVOICE_CONSIGNMENT_NOTE`, the finding as reported (2026-09-01):
+    re-triggering its reference PDF a second time returned `409` on
+    `transaction_document_natural_key_uq`.
+
+    Different root cause from the test above it despite the identical shape
+    — that one is a PDF archetype's own service
+    (`src/silver/entitlement.py` and its four siblings); this is
+    `src/silver/promote.py::promote_transaction_documents`, shared by
+    ARCHETYPE1_PROMOTE (CSV) and PDF_EXTRACTION's archetype-1 extractors
+    alike, and it never had ANY natural-key lookup — not "content-keyed
+    instead of natural-keyed" the way the other archetypes started out, just
+    absent. Tenant migration 030 gave `transaction_document` the
+    `supersedes_doc_id` pointer the other five tables already had; this test
+    is the HTTP-level proof the fix works for a real PDF specimen, not just
+    the archetype-level proof in `test_transaction.py`.
+    """
+    entity_id = uuid.uuid4()
+    upload = api_client.post(
+        "/artefacts",
+        headers=AUTH,
+        data={"entity_id": str(entity_id), "document_type": "GTA_INVOICE_CONSIGNMENT_NOTE"},
+        files={
+            "file": (
+                "gta.pdf",
+                (SAMPLES / "A4.08_GTA_Invoice_Consignment_Note.pdf").read_bytes(),
+                "application/pdf",
+            )
+        },
+    )
+    assert upload.status_code == 201, upload.text
+    ingest_id = upload.json()["ingest_id"]
+
+    body = {"doc_type_code": "GTA_INVOICE_CONSIGNMENT_NOTE"}
+    first = api_client.post(f"/artefacts/{ingest_id}/trigger", headers=AUTH, json=body)
+    assert first.status_code == 202, first.text
+    assert first.json()["status"] == "ACCEPTED"
+    assert first.json()["mechanism"] == "PDF_EXTRACTION"
+
+    second = api_client.post(f"/artefacts/{ingest_id}/trigger", headers=AUTH, json=body)
+    assert second.status_code == 202, second.text
+    assert second.json()["status"] == "ACCEPTED"
+    assert second.json()["batch_id"] != first.json()["batch_id"]
 
 
 def test_a_conflict_is_409_with_constraint_context(

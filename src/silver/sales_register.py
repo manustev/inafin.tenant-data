@@ -408,14 +408,32 @@ class SalesRegisterLoader:
 
         parsed = parse_sales_register_csv(data)
         if not parsed.ok:
+            reason = "; ".join(parsed.rejections[:5]) + (
+                f" (+{len(parsed.rejections) - 5} more)"
+                if len(parsed.rejections) > 5
+                else ""
+            )
+            # BUG FOUND LIVE by the ERP upload E2E suite (2026-09-01): this
+            # used to raise straight away with no durable record, anywhere.
+            # `record_and_dispatch_trigger` still correctly folded the
+            # exception into `TriggerOutcome.status = "QUARANTINED"` — that
+            # part of the response was never wrong — but `GET /status`
+            # (`SilverReader.artefact_outcome`) looks up
+            # `v1_quarantined_artefact WHERE ingest_id = %s` FIRST, found
+            # nothing, fell through to the `v1_ingest_batch` lookup (also
+            # nothing — no batch is ever created on this path), and reported
+            # PENDING forever. A client polling status after a synchronously
+            # quarantined trigger saw the artefact hang indefinitely.
+            # `RegisterLoader.load` (the flat REGISTER_LOADER mechanism) has
+            # carried the fix for this exact failure shape since it was
+            # written — `self._quarantine(...)` below is that same method,
+            # copied rather than shared because the two loaders' `load()`
+            # signatures differ enough that a shared helper would need to
+            # accept `document_type` as a parameter either way, and this
+            # loader has exactly one caller of it.
+            await self._quarantine(ctx, ingest_id, entity_id, reason, ingest_run_id)
             raise ValidationRejected(
-                f"{ctx} artefact {ingest_id} rejected: "
-                + "; ".join(parsed.rejections[:5])
-                + (
-                    f" (+{len(parsed.rejections) - 5} more)"
-                    if len(parsed.rejections) > 5
-                    else ""
-                )
+                f"{ctx} artefact {ingest_id} rejected: {reason}"
             )
 
         batch_id = uuid.uuid4()
@@ -575,4 +593,38 @@ class SalesRegisterLoader:
                     line.taxable_value, line.gst_rate,
                     line.cgst, line.sgst, line.igst, line.cess, line.total_value,
                 ),
+            )
+
+    async def _quarantine(
+        self,
+        ctx: TenantContext,
+        ingest_id: uuid.UUID,
+        entity_id: uuid.UUID,
+        reason: str,
+        ingest_run_id: uuid.UUID,
+    ) -> None:
+        """FATAL parse failure only — the durable half of quarantining.
+
+        Mirrors `RegisterLoader._quarantine`
+        (`src/silver/registers/loader.py`) exactly: same table, same
+        `ON CONFLICT` upsert (a re-attempt after a parser fix replaces the
+        verdict rather than accumulating rows — the artefact itself is
+        immutable, so a history of retries belongs in logs, not this table).
+        The artefact stays in Bronze, untouched; the verdict is Silver's,
+        because refusing a file is a conclusion drawn from parsing it.
+        """
+        async with self._pool.transaction(ctx, Role.INGEST) as conn:
+            await conn.execute(
+                sql.SQL(
+                    """
+                    INSERT INTO {}.quarantined_artefact (
+                        ingest_id, entity_id, document_type, reason, ingest_run_id
+                    ) VALUES (%s, %s, %s, %s, %s)
+                    ON CONFLICT (ingest_id) DO UPDATE
+                       SET reason        = EXCLUDED.reason,
+                           rejected_at   = now(),
+                           ingest_run_id = EXCLUDED.ingest_run_id
+                    """
+                ).format(sql.Identifier(ctx.silver_schema)),
+                (ingest_id, entity_id, DOC_TYPE, reason, ingest_run_id),
             )

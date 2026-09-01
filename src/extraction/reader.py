@@ -67,6 +67,30 @@ class PdfTextPort(Protocol):
         ...
 
 
+class UnreadablePdfError(ValueError):
+    """The bytes handed to a PDF_EXTRACTION trigger are not a parseable PDF.
+
+    A `ValueError` subclass, the same shape `UnknownExtractorError`
+    (`src/extraction/dispatch.py`) and `infer_content_format`'s plain
+    `ValueError` already use for "the caller's request cannot be satisfied as
+    asked" — this is that same category, not Silver's judgement about a
+    document's business content (`ValidationRejected`, which quarantines).
+    Nothing about pypdf's exception hierarchy is a fact this repo owns, so it
+    is translated at the one place that imports `pypdf` rather than leaking
+    `pypdf.errors.PyPdfError` to a caller three layers away.
+
+    Defense in depth, not the fix for the ERP upload E2E suite's finding
+    (2026-09-01): the actual bug was `src/catalogue/document_schema.py`
+    publishing `TABULAR` for five `PDF_EXTRACTION` types, so a tenant
+    following the (now corrected) published contract never reaches this path
+    with CSV bytes. This catches the case that fix does not — a genuine PDF
+    upload that is truncated, corrupt, or otherwise not a valid PDF at all —
+    which is possible for any `PDF_EXTRACTION` type regardless of the
+    catalogue being right, and previously reached the caller as an opaque
+    HTTP 500 (`pypdf.errors.PdfStreamError` uncaught, three layers up).
+    """
+
+
 class PypdfReader:
     """The one real adapter, over `pypdf`.
 
@@ -78,8 +102,17 @@ class PypdfReader:
     """
 
     def extract(self, data: bytes) -> PdfText:
-        reader = pypdf.PdfReader(io.BytesIO(data))
-        pages = [page.extract_text() or "" for page in reader.pages]
+        try:
+            reader = pypdf.PdfReader(io.BytesIO(data))
+            pages = [page.extract_text() or "" for page in reader.pages]
+        except pypdf.errors.PyPdfError as exc:
+            # PyPdfError is the common base for PdfStreamError, PdfReadError,
+            # EmptyFileError and ParseError — every shape "these bytes are not
+            # a PDF" takes. NOT DependencyError/DeprecationError, which are
+            # this repo's own setup problems, not the caller's.
+            raise UnreadablePdfError(
+                f"could not read PDF: {exc}"
+            ) from exc
         total_chars = sum(len(page.strip()) for page in pages)
         return PdfText(pages=pages, has_native_text=total_chars >= NATIVE_TEXT_MIN_CHARS)
 
