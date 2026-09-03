@@ -87,6 +87,63 @@ function of Postgres ownership from here — created-by-`recon_engine` means
 owned-by-`recon_engine` means full privileges already, with nothing for
 this repo to assert or revoke.
 
+## Follow-up: the first deliberate Gold exception
+
+Shared migration `063` + tenant migration `038`, same day. A generic
+tenant-wide settings/preferences table (`{{gold}}.tenant_setting` — not
+reconciliation-specific; portal, API, and recon consumers alike) needed to
+be readable by `recon_engine`. This repo's stated rule was flat: "no access
+to Bronze, Silver base tables, Gold, or any other tenant." Two real
+questions had to be settled before deciding this was still safe:
+
+1. **Does Gold living on a separate database server from Silver make a
+   cross-schema view fragile?** No — Bronze/Silver/Gold are provisioned
+   together, in one function, over one connection
+   (`provision_tenant_schemas`), and `inafin-api`/portal already writes to
+   Gold via `SET LOCAL ROLE t_<slug>_recon` today, which only works because
+   Gold is reachable from the same Postgres connection as everything else.
+   The separate-database risk is real but specific to the RECONCILIATION
+   schema (which the engine team themselves flagged as possibly landing on
+   its own server) — it does not extend backward onto Gold.
+2. **Does exposing one Gold view reopen Gold generally?** No, if done as a
+   named allowlist rather than a blanket grant — the same allowlist
+   philosophy `060` already used for Silver's `v1_rcm_%` views, applied to
+   Gold: `apply_tenant_grants` now grants `recon_engine` `SELECT` on any
+   view matching `v1_reconciliation_%`, and nothing else in Gold.
+   `inafinplatform/v2`'s actual business tables (`fact_record`,
+   `workspace_*`, `gst_document`, ...) remain completely unreachable.
+
+`recon_engine` also gained `USAGE` on the Gold schema itself (needed to
+reach the view at all) and a matching `SELECT` on Gold's
+`__schema_identity` (same reasoning `001_app.sql` gives for every other
+schema a role holds `USAGE` on — without it, a legitimate read hits a bare
+permission-denied instead of the boundary guard's legible error).
+`scripts/check_isolation.py` was extended and mutation-checked for this
+exact allowlist (excluding the one approved view from the pattern match
+was caught, then reverted).
+
+## Follow-up: a second Gold exception under the same allowlist
+
+Tenant migration `039`, 2026-09-04. The engine team asked for a governed
+GL-code-to-REF-02-category bridge (`v1_rcm_category_bridge` in their
+request) — client-configured mapping data, not extracted-document
+evidence, same shape as `tenant_setting`. Built as `{{gold}}.
+gl_category_bridge` + `{{gold}}.v1_reconciliation_category_bridge`,
+following `038`'s precedent exactly. No new shared migration was needed:
+`063`'s allowlist already grants `recon_engine` `SELECT` on any Gold view
+matching `v1_reconciliation_%`, and this view's name already matches —
+confirming the allowlist is genuinely self-extending, the same property
+`060`'s `v1_rcm_%` Silver allowlist has.
+
+One design bug found and fixed before any real data went in: the first cut
+of the table's uniqueness constraint scoped only on `(gl_code, match_mode,
+entity_id, gstin)`, which rejects two legitimate `TOKEN_SET`/`EXACT_PHRASE`
+rules on the same `gl_code` with different narration patterns — exactly the
+"incompatible multi-category match" fixture the engine asked for. Fixed by
+adding `normalized_narration_pattern` into the unique index before the
+first fixture insert. Caught during fixture-seeding, not in production,
+because the fixture set deliberately included the ambiguous case.
+
 ## Consequences
 
 - `inafin-reconciliation-engine` is isolated from `inafinplatform/v2`/

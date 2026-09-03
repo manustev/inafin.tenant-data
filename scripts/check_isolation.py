@@ -258,13 +258,43 @@ def check(conn: psycopg.Connection[tuple[object, ...]]) -> list[Finding]:
                 )
             # recon_engine (inafin-reconciliation-engine, docs/adr/0001) is
             # scoped to an allowlisted subset of silver v1_ views plus its own
-            # reconciliation schema — nothing on bronze, gold, or a silver
-            # base table, ever.
-            if grantee == recon_engine and schema in (bronze, gold):
+            # reconciliation schema — nothing on bronze, ever. Gold gets ONE
+            # deliberate, named exception (shared migration 063):
+            # v1_reconciliation_tenant_setting, plus the __schema_identity
+            # read that USAGE on the gold schema requires (step 7 below) —
+            # anything else in Gold is still a violation, inafinplatform/v2's
+            # tables included.
+            if grantee == recon_engine and schema == bronze:
                 findings.append(
                     Finding(
                         "recon-engine-scoped-to-own-schema", "CRITICAL",
                         f"{recon_engine} has {priv} on {schema}.{table}",
+                    )
+                )
+            if (
+                grantee == recon_engine
+                and schema == gold
+                and table != "__schema_identity"
+                and not table.startswith("v1_reconciliation_")
+            ):
+                findings.append(
+                    Finding(
+                        "recon-engine-scoped-to-own-schema", "CRITICAL",
+                        f"{recon_engine} has {priv} on {schema}.{table} — only "
+                        f"v1_reconciliation_% views are an approved Gold exception",
+                    )
+                )
+            if (
+                grantee == recon_engine
+                and schema == gold
+                and table.startswith("v1_reconciliation_")
+                and relkind != "v"
+            ):
+                findings.append(
+                    Finding(
+                        "recon-engine-gold-exception-must-be-a-view", "CRITICAL",
+                        f"{recon_engine} has {priv} on {schema}.{table}, relkind={relkind} "
+                        f"— the Gold exception is for views only, never a base table",
                     )
                 )
             if (

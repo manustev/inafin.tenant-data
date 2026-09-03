@@ -106,6 +106,62 @@ def test_recon_engine_cannot_read_gold(
         )
 
 
+def test_recon_engine_reads_the_one_gold_exception(
+    admin: psycopg.Connection[tuple[object, ...]], tenant_a: SeededTenant
+) -> None:
+    """docs/adr/0001's follow-up, shared migration 063: v1_reconciliation_tenant_setting
+    is the ONE deliberate Gold exception. Positive control first."""
+    admin.execute(
+        sql.SQL("SELECT count(*) FROM {}.v1_reconciliation_tenant_setting").format(
+            sql.Identifier(tenant_a.ctx.gold_schema)
+        )
+    )
+    _as_recon_engine(admin, tenant_a.ctx.slug)
+    admin.execute(
+        sql.SQL("SELECT count(*) FROM {}.v1_reconciliation_tenant_setting").format(
+            sql.Identifier(tenant_a.ctx.gold_schema)
+        )
+    )
+
+
+def test_recon_engine_gold_exception_does_not_widen_to_other_tables(
+    admin: psycopg.Connection[tuple[object, ...]], tenant_a: SeededTenant
+) -> None:
+    """The allowlist is v1_reconciliation_% only — tenant_setting's own BASE
+    table stays out of reach, same as every other v1_ contract in this repo."""
+    _as_recon_engine(admin, tenant_a.ctx.slug)
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        admin.execute(
+            sql.SQL("SELECT count(*) FROM {}.tenant_setting").format(
+                sql.Identifier(tenant_a.ctx.gold_schema)
+            )
+        )
+
+
+def test_recon_engine_reads_the_category_bridge_view(
+    admin: psycopg.Connection[tuple[object, ...]], tenant_a: SeededTenant
+) -> None:
+    """Tenant migration 039: a second Gold exception, covered by the same
+    v1_reconciliation_% allowlist as tenant_setting — no new grant needed."""
+    admin.execute(
+        sql.SQL("SELECT count(*) FROM {}.v1_reconciliation_category_bridge").format(
+            sql.Identifier(tenant_a.ctx.gold_schema)
+        )
+    )
+    _as_recon_engine(admin, tenant_a.ctx.slug)
+    admin.execute(
+        sql.SQL("SELECT count(*) FROM {}.v1_reconciliation_category_bridge").format(
+            sql.Identifier(tenant_a.ctx.gold_schema)
+        )
+    )
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        admin.execute(
+            sql.SQL("SELECT count(*) FROM {}.gl_category_bridge").format(
+                sql.Identifier(tenant_a.ctx.gold_schema)
+            )
+        )
+
+
 def test_other_roles_cannot_read_reconciliation_schema(
     admin: psycopg.Connection[tuple[object, ...]], tenant_a: SeededTenant
 ) -> None:

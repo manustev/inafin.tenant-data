@@ -62,7 +62,48 @@ function failing to run, not their data being at risk. No action needed on
 their side; flagging so they know the earlier failed migration wasn't
 caused by anything they did.
 
-## 4. Still open — requested fixtures not yet built
+## 4. Tenant settings contract — built (`TD-RCM-NEW-001`, informal)
+
+Engine team asked for `v1_reconciliation_tenant_setting` (tenant-wide
+default + entity/GSTIN override, typed value, unit, version, approval
+state, effective dates, source reference — first key:
+`rcm.director_remuneration.amount_match_tolerance`). Built as a **generic**
+table, not reconciliation-scoped — `{{gold}}.tenant_setting`, usable by
+portal/API preferences too, per Steve's explicit direction. This required
+the first deliberate exception to `docs/adr/0001`'s "recon_engine touches
+nothing in Gold" — see that ADR's follow-up section for the full reasoning
+(why Gold, not a cross-schema fragility risk the way the reconciliation
+schema itself is; why a named allowlist, not a blanket Gold opening).
+Exposes full row-level history (not pre-filtered to "currently effective")
+— which row applies for a given transaction date is the engine's own
+resolution, consistent with the "expose facts, let the deterministic
+engine explain the linkage" principle their own remuneration request
+(below) states explicitly.
+
+## 5. Employee-relationship / director-remuneration evidence — cannot be built as specified
+
+Engine team proposed two views (`v1_rcm_employee_relationship_evidence`,
+`v1_rcm_director_remuneration_evidence`) assuming this repo has separate
+employee-master, journal/GL, and AP-payment source data to join. Checked
+against the full registry: **no such document types exist.** The only
+employment-adjacent source is `payroll_tds_register` (already fully
+consumed by the existing `v1_rcm_payroll_tds_evidence`) — a period-based
+payroll/TDS export with no stable person identifier across periods and no
+`gl_code`/`invoice_or_journal_reference`/`posting_date` at all.
+`trial_balance` is a fiscal-year aggregate, not transaction-line;
+`bank_statement_outward` has per-transaction dates/amounts but nothing
+that keys it to a payroll row.
+
+**Needed before any schema work starts**: which real document carries an
+employee master (stable person/employee id, employment relationship,
+status history), and which real document carries remuneration transaction
+evidence with `gl_code` + `posting_date` + `invoice_or_journal_reference`
+together (a payroll disbursement journal? a GL extract?). Not resolved as
+of this note — a `docs/review/` SME question for this should be filed
+before the two views are attempted, same discipline as the DIR-12/
+TD-RCM-006 questions.
+
+## 6. Still open — requested fixtures not yet built
 
 Their request also asked: *"publish fixtures covering: open registration,
 legal cancellation, late correction, and a correction that does not change
@@ -70,3 +111,34 @@ registration validity."* Acme's real data already demonstrates the first
 two (four `Active` GSTINs, one `Suspended` with a date). The other two —
 a same-GSTIN correction that changes the legal end date, and one that
 doesn't — are not yet seeded on either tenant. Not done as of this note.
+
+## 7. GL-to-REF-02 category bridge — built (`TD-RCM-NEW-002`, informal)
+
+Engine team asked for `v1_rcm_category_bridge` (governed GL-code-to-
+REF-02-category mapping, tenant/entity/GSTIN scope, `GL_EXACT`/
+`EXACT_PHRASE`/`TOKEN_SET` match modes, full history, priority-based
+precedence resolved by the engine). Built as `v1_reconciliation_
+category_bridge` (tenant migration `039`) — same Gold-hosted, generic-
+config shape as `tenant_setting` (`docs/adr/0001`'s follow-up), since this
+is client-configured mapping data, not something extracted from an
+ingested document. No new grant migration was needed — it lands under the
+same `v1_reconciliation_%` allowlist `063` already grants.
+
+Five fixture scenarios seeded on Acme, as requested:
+- **Exact match** — tenant-wide `4010-FREIGHT` → `REF02_FREIGHT_INWARD`
+  (`GL_EXACT`).
+- **No match** — `9999-MISC` is deliberately left unmapped (no row; a
+  missing mapping is represented by absence, not a sentinel row).
+- **Entity/GSTIN override** — the same `4010-FREIGHT` GL code, overridden
+  for GSTIN `06AABCM4521F1ZM` to `REF02_FREIGHT_EXPORT` at higher priority.
+- **Expired mapping** — `5020-COMMISSION` → `REF02_COMMISSION_OLD`,
+  `effective_to = 2026-06-30`.
+- **Incompatible multi-category match** — `6030-BANK-CHARGES` carries two
+  currently-active `TOKEN_SET` rules (`'bank charges'` →
+  `REF02_BANK_CHARGES`, `'forex conversion'` → `REF02_FOREX_CONVERSION`)
+  that could both plausibly match one narration — resolving that ambiguity
+  is the engine's own precedence logic, not something this repo
+  pre-resolves.
+
+Not yet done: Globex fixtures (schema/view exist there, no rows seeded —
+say if you need them).

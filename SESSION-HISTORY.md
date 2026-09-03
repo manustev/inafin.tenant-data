@@ -78,6 +78,140 @@ CURRENT**.
 
 ---
 
+## Current state (2026-09-03, seventeenth session) — inafin-reconciliation-engine onboarded
+
+A new external consumer, `inafin-reconciliation-engine` (RCM/ITC/FCM/ADT —
+NOT `inafinplatform/v2`, which is being treated as legacy, though some
+modules were carried over), sent a requirements/contract-request doc
+(`inafin-tenant-data-rcm-contract-request.md`). Session was: review it
+against this repo's invariants, get explicit decisions from Steve on the
+real conflicts, implement, then iterate against the engine team's own
+review of what shipped. Two ADRs (`docs/adr/0001`, `0002`) and a
+`docs/review/` folder (SME questions + team feedback) were started this
+session as the standing practice for this kind of cross-repo work going
+forward.
+
+**The central review finding**: the request's Priority 0 ("a dedicated
+reconciliation schema + role") read at first like a duplicate of the
+already-built `t_<slug>_gold`/`t_<slug>_recon` (Pipeline 2's mechanism) —
+until checking `apply_tenant_grants`: it grants EVERY table in `{{gold}}`
+to whichever role holds `t_<slug>_recon`, a blanket sweep that would let
+two independent writers (the new engine and legacy `v2`) read/write each
+other's tables. Steve's call, after the engine team confirmed they are a
+genuinely separate service: give them a real separate schema
+(`t_<slug>_reconciliation`) and role (`t_<slug>_recon_engine`), not a
+table-scoped carve-out of Gold.
+
+**Built**: shared migrations `060`–`062`, tenant migrations `036`/`037`.
+
+- `060` — provisions the schema + role for every tenant (backfilled
+  existing ones via a `DO` loop over `app.tenant_registry`, since
+  `provision_tenant_schemas` is only called at initial provisioning, unlike
+  `apply_tenant_grants` which the runner re-invokes for every tenant after
+  every migration). Grants `recon_engine` `SELECT` on an ALLOWLISTED subset
+  of Silver `v1_` views — any `v1_rcm_%` (rule-based, so new engine
+  contracts need no grant-migration) plus a fixed, named set of
+  pre-existing general contracts the request doc itself named as
+  sufficient — never the full `v1_` surface `recon`/`support` get, and
+  never Bronze or Gold at all.
+- **A real bug caught before it shipped**: the first draft of `060`'s
+  `apply_tenant_grants` was copied from migration `001`'s ORIGINAL body,
+  silently reverting migration `006`'s later fix (Bronze going
+  INSERT-only). Caught by `test_bronze_is_insert_only` failing, not by
+  inspection — fixed by rebasing on `006`'s version. Lesson: `CREATE OR
+  REPLACE FUNCTION` migrations must diff against the LATEST prior version
+  of that function, not the one that originally defined it.
+- `061` — grants `CREATE` on `t_<slug>_reconciliation` to `recon_engine`.
+  Originally deliberately withheld (docs/adr/0001's first cut: "when ready
+  for production"), reversed the same day once the engine team's own
+  feedback said they were blocked on real Postgres persistence for it —
+  Steve decided not to gate early integration on a later milestone.
+- **A second real bug, this one operational**: within the same session,
+  the engine team exercised the new `CREATE` grant and created 8 real
+  tables (`analysis_run`, `evidence_record`, `assessment`, ...) owned by
+  `t_<slug>_recon_engine`, not `tenant_migrate`. This broke `make migrate`
+  outright — `apply_tenant_grants` runs as `tenant_migrate`, and Postgres
+  requires object OWNERSHIP (or `GRANT OPTION`) to `REVOKE`/`GRANT` on a
+  table, which `tenant_migrate` does not have on a table it did not create.
+  `062` fixed it by having `apply_tenant_grants` manage the reconciliation
+  schema at the SCHEMA level only (`USAGE`/`CREATE`, controlled by schema
+  ownership, which `tenant_migrate` does hold) and never enumerate tables
+  inside it again — "the engine owns table DDL inside its own schema" and
+  "tenant-data's grant function self-heals every table in that schema"
+  are in direct tension the moment the first table exists; this was
+  foreseeable in hindsight, not caught in the original ADR.
+- `036` — four of the seven requested reader contracts, each an additive
+  view over an already-built, already-verified table, none touching an
+  existing `v1_` view: `v1_rcm_payroll_tds_evidence` (straight rename of
+  `payroll_tds_register`), `v1_rcm_director_evidence` (`director_list_din`
+  joined to `narrative_contract`'s evidence-locator rows for board-
+  resolution/service-agreement — entity-level evidence, NOT director-
+  specific, since `narrative_contract` has no per-director key; documented
+  in the view comment, not overpromised), `v1_rcm_purchase_candidate`
+  (`purchase_register`, with `supplier_name`/`description_or_narration`
+  honestly `NULL` — `purchase_register` never captured either), `v1_rcm_
+  registration_history` (built off `gstin_register_entry`, NOT `platform_
+  ref.gst_registration` — the onboarding table is current-state-only and
+  has no history; `gstin_register_entry` already had real per-tenant
+  supersede-tracked history for this exact fact).
+- Three fields were deliberately left `NULL` rather than invented: `v1_rcm_
+  director_evidence.gstin` (directorship is a PAN/entity-level fact in this
+  data model, not GSTIN-level — an entity with multiple GSTINs has no
+  single correct one to attach), `v1_rcm_purchase_candidate.supplier_name`/
+  `description_or_narration`, and `v1_rcm_registration_history.recipient_
+  is_business_entity` (no source states it).
+- Two blocked, not started: TD-RCM-003 (related-party — blocked on the
+  pre-existing `RELATED_PARTY_REGISTER` table-extraction gap, item 19),
+  TD-RCM-006 (foreign-payment enrichment — blocked on the SME answering
+  which document carries the new fields, plus a real specimen; question
+  filed in `docs/review/`).
+
+**A real bug found via the engine team's own review, not this repo's
+testing**: `036`'s first cut of `v1_rcm_registration_history.effective_to`
+derived from `superseded_at` (a system/audit timestamp — when tenant-data
+recorded a correction). The engine team's first message called this an
+acknowledged limitation; a follow-up gave the concrete failure mode a
+late correction genuinely produces: a registration cancelled 31-Jul but
+corrected into Silver on 15-Sep would show `effective_to = 15-Sep`, so an
+invoice dated 20-Aug would read as "still valid" when it legally was not.
+**This repo's first response (defending the derivation as correct
+documented behavior) was wrong** — flagged directly to Steve rather than
+silently corrected. Fixed in `037`: `effective_to` is parsed from `gstin_
+register_entry.status`'s own embedded date (`'Cancelled (31-Jul-2025)'` →
+`2025-07-31`) — a fact the real specimen already carried in its `Status
+(as on ...)` column, just unstructured; no extractor or base-table change
+needed, only the view. `registration_status` is cleaned to the bare state
+word as a consequence, so the date is not exposed twice in two shapes.
+Verified against Acme's real data (`06AABCM4521F1ZM`, `'Suspended
+(28-Feb-2025)'` → `effective_to = 2025-02-28`).
+
+**Also found and fixed, unrelated to the engine's asks**: `Provisioning
+Service.deprovision`'s test-cleanup path only knew `all_schemas`/
+`all_roles` (bronze/silver/gold, ingest/recon/support) — every test run
+since `060` landed was leaking an orphaned `t_<random>_reconciliation`
+schema + role (24 found and dropped this session; root cause fixed by
+naming the reconciliation schema/role explicitly in `deprovision`).
+
+**Verified, every step**: `make migrate` zero drift against the live
+shared cluster (never a reset) after each migration; `scripts/check_
+isolation.py` extended with `recon_engine`-specific rules and mutation-
+checked (a stray `SELECT` grant on a Gold table was injected and caught,
+then reverted); `tests/conformance/test_rcm_reader_contracts.py` (8 tests)
+covers positive reads on every approved view, denial on a non-allowlisted
+view/base table/Gold, the reconciliation schema being denied to the other
+three roles, cross-tenant denial, and `CREATE` being scoped to the
+engine's own tenant only — also mutation-checked (a view was excluded from
+the allowlist regex, exactly one test failed, naming it). Full suite: 674
+passed / 2 skipped (up from 666), `make lint`/`make typecheck` clean
+throughout.
+
+**Not done this session**: the fixtures the engine team asked for
+demonstrating a "late correction" and "a correction that doesn't change
+validity" scenario on both Acme and Globex — real data today only shows
+"open" and "cancelled from day one," not a genuine two-step correction.
+
+---
+
 ## Current state (2026-08-19, tenth session)
 
 **Category B connector layer — the source-pulling side, upstream of Bronze

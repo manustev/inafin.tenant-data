@@ -15,6 +15,8 @@ already contain the reasoning for decisions that look surprising:
 | `registry/README.md` | Document Type Registry — 130 refs → 125 in-scope types |
 | **`SESSION-HISTORY.md`** | The verbatim per-session narrative — what was built, verified, tried, and rejected, sessions 1–15. This file only keeps durable rules and the current backlog; read the history before proposing anything that looks like new work in an area the table below lists as built |
 | `API-CONTRACT.md` | What `inafin-api` may read/write, and how — the boundary that replaced its withdrawn migration proposals (2026-08-14, seventh session) |
+| `docs/adr/` | Architecture decision records — structural decisions from cross-repo requests (new roles, new schemas, contract shape). Read `0001`/`0002` before touching anything `recon_engine`/reconciliation-schema related |
+| `docs/review/` | Open questions sent to a domain SME or another team, and their team's feedback with what was/wasn't actioned — read before assuming an inafin-reconciliation-engine contract is finished |
 
 ## Non-negotiable invariants
 
@@ -105,7 +107,7 @@ uvicorn src.api.app:app      # the ingestion surface (REST + GraphQL)
 
 ## Current state
 
-**Green as of 2026-09-03 (sixteenth session): 666 passed / 2 skipped / 0
+**Green as of 2026-09-03 (seventeenth session): 674 passed / 2 skipped / 0
 failed**, `make lint` + `make typecheck` clean, `make migrate` zero drift —
 all against the live shared cluster, never a reset. Schema release **`v8` is
 CURRENT**.
@@ -122,10 +124,53 @@ edited, supersede-keys-off-the-index), moved to **`SESSION-HISTORY.md`**
 ("Snapshot moved from CLAUDE.md on 2026-09-03") to keep this file short.
 Read it before assuming something below is unbuilt.
 
+**New this session (seventeenth): `inafin-reconciliation-engine` is a real,
+active consumer, not a proposal.** It is a NEW service (not `inafinplatform/
+v2`, which is legacy) with its own per-tenant schema/role
+(`t_<slug>_reconciliation` / `t_<slug>_recon_engine`, shared migrations
+`060`–`062`) and 4 of 7 requested Silver reader contracts
+(`v1_rcm_payroll_tds_evidence`, `v1_rcm_director_evidence`,
+`v1_rcm_purchase_candidate`, `v1_rcm_registration_history` — tenant
+migrations `036`/`037`). The engine already holds `CREATE` on its own
+schema and has created 8 real tables there. See "Next session starts here"
+below for what's still open with them, and `docs/adr/0001`/`0002` +
+`docs/review/` for the full decision trail — **do not re-propose Priority 0
+or re-litigate the schema-vs-Gold question**, it is built and in active use.
+
 ## Next session starts here
 
 Everything in "Built and working" above is done — check there first. What is
 genuinely open, in priority order:
+
+**inafin-reconciliation-engine (the newest active thread — read
+`docs/adr/0001`/`0002` and `docs/review/` before touching any of this):**
+
+0. **Fixtures still owed to the engine team.** They asked for real data on
+   Acme AND Globex demonstrating: a same-GSTIN correction that changes the
+   legal registration end date ("late correction"), and one that doesn't.
+   Real data today only covers "open" (Active) and "cancelled/suspended
+   from day one" — not a genuine two-step correction. Seed these through
+   the real `GstinRegisterExtractor` pipeline (synthetic page text is fine,
+   real PDF bytes are not required — `to_silver` only hashes them), not raw
+   SQL inserts — see `tests/conformance/test_extraction_archetypes_6_7_4_8.py`
+   for the pattern and the real specimen text this repo already has for
+   `GSTIN_REGISTER` (`reference/A1-A7Documents/A2.07_GSTIN_Register.pdf`).
+0b. **TD-RCM-003 (related-party evidence)** — still blocked on
+    `RELATED_PARTY_REGISTER`'s table extraction, which needs a
+    `pdfplumber`-based rewrite (see item 19 below), not a design decision.
+0c. **TD-RCM-006 (foreign-payment enrichment)** — blocked on the domain
+    SME's answer in `docs/review/sme-question-td-rcm-006-foreign-payment-
+    evidence.md` (which document carries `place_of_supply`/
+    `consideration_status`, plus a real specimen — schema alone won't
+    unblock it).
+0d. **DIR-12 / Forensic-mode question** — `docs/review/sme-question-dir12-
+    director-evidence.md` is still open; Phase 1 is proceeding on the
+    client-list-only assumption regardless (`docs/adr/0002`), this is a
+    confirmation, not a blocker.
+0e. **`recipient_is_business_entity`** (`v1_rcm_registration_history`) is
+    `NULL` — no source states it, and this repo won't encode a tax-law
+    derivation rule without SME sign-off. Same status as 0c: needs domain
+    input, not code.
 
 **Category B (the active workstream):**
 
