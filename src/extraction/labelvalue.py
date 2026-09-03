@@ -133,7 +133,11 @@ def _parse_hsn(raw: str) -> str:
     return match.group(0)
 
 
-def _coerce(field_type: str, raw: str) -> object:
+def coerce_field_value(field_type: str, raw: str) -> object:
+    """Cleanse one raw string per its declared `FIELD_TYPES` member. Shared
+    with `tablevalue.py`'s per-column coercion — one set of type rules, used
+    by both the `Label: Value` and the repeating-row grammars, so `money`/
+    `date`/etc. cannot drift into two different readings of the same name."""
     match field_type:
         case "text":
             return raw.strip()
@@ -208,7 +212,41 @@ class NoTextLayer:
 ExtractionOutcome = Extracted | Partial | NoTextLayer
 
 
-def _find_value(lines: list[str], label: str) -> str | None:
+#: A two-column "Particular / Amount" table row, flattened by `pypdf` with NO
+#: colon between the label and its figure — `"Assessable (Customs) Value
+#: 1,24,50,000"`, not `"Assessable (Customs) Value: 1,24,50,000"`. Real
+#: customs/assessment paperwork is laid out exactly this way (a table, not
+#: label:value prose), so this is a second real shape the grammar needs, not
+#: a looser reading of the first. Scoped to `money` fields only — the shape
+#: this batch's tables actually take, and money's `[\d,]+(?:\.\d+)?` already
+#: cannot span multiple words, so anchoring "everything after the label up to
+#: a trailing number" at the label's start is unambiguous: the label may be
+#: followed by prose (`"IGST @ 18% (on value + BCD)"` before its figure), but
+#: never by another money-shaped table cell, so the FIRST number sequence
+#: after the label is always the row's own amount.
+_TABLE_ROW_MONEY_RE = r"^\s*{label}\b.*?({money})\s*$".format(
+    label="{label}", money=_MONEY_RE.pattern
+)
+
+#: Same "colon-less table row" shape `_TABLE_ROW_MONEY_RE` handles, for
+#: `date` fields — but additionally tolerant of the date's OWN tail wrapping
+#: onto the following physical line with no delimiter, since a table-header
+#: date (not a `Label: Value` line) reflows exactly like table cells do.
+#: `GSTIN_REGISTER`'s real specimen is the motivating case: `pypdf` splits
+#: `"Status (as on 31-Mar-2025)"` as `"Status (as on 31-"` / `"Mar-2025)"`,
+#: mid-token, with the closing paren on the second line. `_find_value` tries
+#: this against each line alone first (a self-contained, unwrapped date), and
+#: only joins the NEXT line in if that fails — one line of look-ahead,
+#: bounded, not an open accumulation the way `tablevalue.py`'s row
+#: reconstruction is (that module owns the general multi-line case; this is
+#: the narrow single-fact analogue for a header date specifically).
+_TABLE_ROW_DATE_RE = (
+    r"^\s*{label}\b.*?"
+    r"(\d{{1,2}}\s*-\s*[A-Za-z]{{3}}\s*-\s*\d{{4}}|\d{{1,2}}\s+[A-Za-z]+\s+\d{{4}})"
+)
+
+
+def _find_value(lines: list[str], label: str, field_type: str | None = None) -> str | None:
     """The remainder of the FIRST line starting with `label:` (or `label :`),
     case-insensitively. `None` if no such line exists.
 
@@ -216,12 +254,35 @@ def _find_value(lines: list[str], label: str) -> str | None:
     values, and preferring the first keeps this deterministic if one ever
     does (a corrected figure restated in a footnote must not silently win
     over the primary declaration).
+
+    A colon-less table row is tried SECOND, for `money` fields (see
+    `_TABLE_ROW_MONEY_RE`) or `date` fields (see `_TABLE_ROW_DATE_RE`, which
+    additionally tolerates the date wrapping onto the next line). The colon
+    form is tried first and always wins where both could match, so a genuine
+    `Label: Value` line is never reinterpreted as a table row.
     """
     prefix_re = re.compile(rf"^\s*{re.escape(label)}\s*:\s*(.*)$", re.IGNORECASE)
     for line in lines:
         m = prefix_re.match(line)
         if m:
             return m.group(1).strip()
+
+    if field_type == "money":
+        table_re = re.compile(_TABLE_ROW_MONEY_RE.format(label=re.escape(label)), re.IGNORECASE)
+        for line in lines:
+            m = table_re.match(line)
+            if m:
+                return m.group(1)
+
+    if field_type == "date":
+        date_re = re.compile(_TABLE_ROW_DATE_RE.format(label=re.escape(label)), re.IGNORECASE)
+        for i, line in enumerate(lines):
+            m = date_re.match(line)
+            if m is None and i + 1 < len(lines):
+                m = date_re.match(f"{line} {lines[i + 1]}")
+            if m:
+                return m.group(1).replace(" ", "")
+
     return None
 
 
@@ -243,13 +304,13 @@ def parse_label_value(pages: list[str], spec: LabelSpec) -> ExtractionOutcome:
     failed: list[str] = []
 
     for name, lf in spec.items():
-        raw = _find_value(lines, lf.label)
+        raw = _find_value(lines, lf.label, lf.type)
         if raw is None or not raw:
             if lf.required:
                 missing.append(name)
             continue
         try:
-            fields[name] = _coerce(lf.type, raw)
+            fields[name] = coerce_field_value(lf.type, raw)
         except LabelValueError:
             if lf.required:
                 failed.append(name)
@@ -270,5 +331,6 @@ __all__ = [
     "LabelValueError",
     "NoTextLayer",
     "Partial",
+    "coerce_field_value",
     "parse_label_value",
 ]

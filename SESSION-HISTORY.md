@@ -14,6 +14,70 @@ the finest-grained record.
 
 ---
 
+## Snapshot moved from CLAUDE.md on 2026-09-03 (trim pass, after sixteenth session)
+
+CLAUDE.md's "Built and working" table and "Load-bearing rules" detail were
+moved here verbatim so that file stays lean for every new session to load.
+**Nothing here is superseded by being archived.** As of the sixteenth
+session (2026-09-03): 666 passed / 2 skipped / 0 failed, `make lint` +
+`make typecheck` clean, `make migrate` zero drift, schema release **`v8`
+CURRENT**.
+
+### Built and working — do not re-propose any of this
+
+| Area | What exists |
+|---|---|
+| Isolation | schema-per-tenant, GRANT-only, `app_login` NOINHERIT + `SET LOCAL ROLE`; templated tenant migrations (`src/migrate/runner.py`) |
+| Bronze | insert-only `artefact_ledger`, intake gate (`src/bronze/filecheck.py`, `scan.py` + `VirusScanPort`), MinIO object store with Object Lock |
+| Registry | `platform_ref.document_type`, 125 in-scope types; `field_contract`, `extraction_spec`, `table_name`, `dispatch_mechanism` are all **registry DATA**, not code branches |
+| Silver A1 | all 24 A1 registers load — `sales_register.py` (header/line) + 23 spec-driven via `RegisterSpec`/`RegisterLoader`, kept honest by `test_register_specs.py`'s DDL gate |
+| Silver A2–A7 | `src/extraction/` — 7 archetype bases, registry-driven specs, all 50 specimens in `reference/A1-A7Documents/`; typed tables for archetypes 3/4/6/7/8. All five PDF archetype services now `record_or_supersede` — a re-dispatched artefact corrects its row (`src/silver/supersede.py`), it does not conflict |
+| PDF text | `PypdfReader` + `FallbackPdfTextReader` + real `PaddleOcrReader` (optional `ocr` extra, verified against real weights) |
+| Dispatch | `src/dispatch/router.py`'s `dispatch_load` — 5 mechanisms: `PDF_EXTRACTION`, `SALES_REGISTER`, `REGISTER_LOADER`, `ARCHETYPE1_PROMOTE`, `GSTN_JSON_PROMOTE` |
+| Trigger errors | `src/dispatch/trigger.py` classifies DB failures into `UnknownArtefact` / `SilverConstraintViolation` (`kind` CONFLICT/INVALID); `POST /artefacts/{id}/trigger` and `tenantctl trigger` map to 404/409/422 — never an opaque 500 |
+| API | `src/api/` REST upload/trigger/status + GraphQL reads; `POST /artefacts/{id}/trigger` dispatches synchronously in-process |
+| Manifest | `SilverWriteResult.batch_id` → `src/dispatch/manifest.py` → `BatchPublisherPort`/`_publish_if_ready`, wired for all mechanisms, verified with a recording fake |
+| Connectors | `src/connectors/` — `SourceConnectorPort`, working `LocalFixtureConnector`, 7 live adapter stubs, `factory.build_source_connector` keyed on `Settings.source_data_mode` |
+| Category B | `GSTR_2B` (tenant `026`, shared `033`) and `GSTR_3B` (tenant `027`, shared `034`) built end to end and verified against the live DB |
+| Platform | shared `024`–`032` identity/onboarding/catalog/grants, reconciled to `inafin-api`'s real contract; `API-CONTRACT.md` is the published boundary |
+| Schema catalogue | `platform_ref.document_type_schema`/`document_type_field` (shared `035`/`036`) — the tenant-facing export contract for all 125 in-scope types, derived by `src/catalogue/document_schema.py`, never hand-written |
+| Field constraints | `document_type_field`'s constraint columns + `document_type_rule` (shared `041`/`042`) — derived straight from live `pg_constraint`/`pg_type` by `src/catalogue/field_constraints.py`, gated against drift by `test_field_constraints.py` |
+| Schema releases | `schema_release`/`schema_artifact` (shared `039`) + the `<prefix>-platform` bucket; `scripts/publish_schema_release.py` publishes a release. **`v8` is CURRENT** (sixteenth session — `GSTIN_REGISTER`'s corrected `as_of_date` source_label), `v1`–`v7` kept but `SUPERSEDED` |
+| Schema pinning | `t_<slug>_bronze.schema_pin` (tenant `028`) — pinned on first upload by `src/catalogue/pin.py`'s `ensure_schema_pin`; an operator rolls a tenant forward with `tenantctl reschema` (`roll_forward`/`roll_forward_all`) |
+| Local auth | `AUTH_MODE=none` (`src/api/auth.py`'s `NoAuth`) for local dev only — `StaticTokenAuth` is still the non-`none` default and still a placeholder for real auth |
+| Archetype-7 table content | 4 of 7 entity-master types' PDF TABLE content (not just header facts) is now a typed, queryable Silver fact table — `SHAREHOLDING_PATTERN`, `GSTIN_REGISTER`, `DIRECTOR_LIST_WITH_DIN`, `KMP_LIST` (shared `048`–`059`, tenant `032`–`035`). `TableFactExtractor` (`src/extraction/entity_master_types.py`) is the generic base every type but `SHAREHOLDING_PATTERN` (which needs a real FY-expansion, not a straight row-to-fact write) uses as-is. `src/extraction/tablevalue.py`'s `parse_table_rows` reconstructs a row from a WINDOW of physical lines (shortest match wins), not a one-line look-back — needed because real specimens wrap a row across up to 5 lines, sometimes mid-token (a GSTIN split across a line break). `SHAREHOLDING_PATTERN`/`GSTIN_REGISTER`/`DIRECTOR_LIST_WITH_DIN` all write end to end and are supersede-tested; `GSTIN_REGISTER`'s own `as_of_date` was mislabeled, not a genuine gap — fixed via a new colon-less, one-line-lookahead `date` fallback in `_find_value` (`src/extraction/labelvalue.py`, mirroring the existing `money` one), shared `058`/`059`, published as schema release `v8`. `KMP_LIST` stays a named `Partial(missing=("as_of_date",))` — its table grammar is built and unit-tested but genuinely unreachable: the specimen states no date at all, only a fiscal-year label, and `entity_master_record.as_of_date` is `NOT NULL` and part of its own bitemporal key, so it cannot be fabricated. `RELATED_PARTY_REGISTER`'s table was deliberately NOT built — its last two columns are open-ended free prose with no delimiter between them; every row-boundary strategy tried corrupted data rather than merely dropping a row (see `tablevalue.py`'s module docstring) |
+
+### Load-bearing rules that came out of that work
+
+- **Which mechanism handles a `doc_type_code` is registry data.** Adding a
+  type under an existing mechanism is a CSV row, never a new `if/elif` on
+  `doc_type_code`. A genuinely new mechanism costs one branch, once.
+- **One table per registry document type** (`TYPED-TABLES-PLAN.md` §8).
+  Collapse only where the shape is provably identical *and* the types always
+  co-occur. **A shared `filed_return` header across GSTR types is already
+  rejected** — each return type gets its own independent table set.
+- **Never invent a vocabulary or a payload shape with no specimen.** Where
+  ground truth is missing the parser *rejects* rather than guesses:
+  `GSTR_2B`'s `cdnr` (all 24 specimens empty) and `GSTR_3B`'s `inter_sup`
+  (all 31 empty) are quarantined, not modelled. Same reason `hsn_master`/
+  `sac_master` ship seeded empty.
+- **JSON is source of record for the nested GSTN returns** — GSTR-1/2B/3B's
+  flat CSVs are confirmed lossy (2B's CSV covers only `b2b`, 228 of 258
+  lines; 3B's is a 21-column summary of a 55-leaf-path JSON). CSV is
+  sufficient only for genuinely flat types. Drives
+  `LocalFixtureConnector`'s json > csv > pdf preference.
+- **Applied migrations are never edited.** A correction is a new migration
+  with a `DROP CONSTRAINT`/`ADD CONSTRAINT`, and the CSV row is updated by
+  hand rather than by re-running `gen_registry_seed.py` over a pinned file.
+- **A "current row" lookup must key on the unique index's own columns, not
+  "the business key" in the abstract** (`src/silver/supersede.py`). A lookup
+  that disagrees with the index does not prevent a duplicate, it just moves
+  where the duplicate appears. Closing a prior row without setting its
+  `supersedes_*` pointer satisfies the index and silently breaks the
+  bitemporal chain — a mutation check is what catches that, not a passing test.
+
+---
+
 ## Current state (2026-08-19, tenth session)
 
 **Category B connector layer — the source-pulling side, upstream of Bronze

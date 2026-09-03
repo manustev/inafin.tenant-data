@@ -60,6 +60,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from typing import ClassVar, cast
 
+import psycopg
 from psycopg import sql
 
 from src.core.errors import ValidationRejected
@@ -470,6 +471,29 @@ class EntityMasterExtractor(DocumentExtractor):
         self._promoter = SilverPromotionService(pool)
         self._store = store
 
+    async def _extra_silver_write(
+        self,
+        conn: psycopg.AsyncConnection[tuple[object, ...]],
+        *,
+        record_id: uuid.UUID,
+        prior_record_id: uuid.UUID | None,
+        ctx: TenantContext,
+        entity_id: uuid.UUID,
+        ingest_id: uuid.UUID,
+        batch_id: uuid.UUID,
+        ingest_run_id: uuid.UUID,
+        outcome: Extracted,
+    ) -> None:
+        """Hook for a table-shaped subclass (e.g. `ShareholdingPatternExtractor`)
+        to write additional fact rows in the SAME transaction as the header
+        insert above — called from inside `EntityMasterService.record_or_
+        supersede`'s own transaction block, never opened separately. No-op
+        for the six plain label:value archetype-7 types, which is why this
+        method's existence changes nothing about them."""
+        _ = (conn, record_id, prior_record_id, ctx, entity_id, ingest_id, batch_id,
+             ingest_run_id, outcome)
+        return None
+
     async def to_silver(
         self,
         outcome: ExtractionOutcome,
@@ -511,7 +535,19 @@ class EntityMasterExtractor(DocumentExtractor):
             batch_id=batch_id,
             bronze_ingest_id=ingest_id,
         )
-        record_id = await self._service.record_or_supersede(ctx, rec)
+
+        async def _on_write(
+            conn: psycopg.AsyncConnection[tuple[object, ...]],
+            record_id: uuid.UUID,
+            prior_record_id: uuid.UUID | None,
+        ) -> None:
+            await self._extra_silver_write(
+                conn, record_id=record_id, prior_record_id=prior_record_id, ctx=ctx,
+                entity_id=entity_id, ingest_id=ingest_id, batch_id=batch_id,
+                ingest_run_id=ingest_run_id, outcome=outcome,
+            )
+
+        record_id = await self._service.record_or_supersede(ctx, rec, on_write=_on_write)
         _put_silver_copy(
             self._store, ctx, doc_type=self.doc_type_code,
             ingest_id=ingest_id, pdf_bytes=pdf_bytes,

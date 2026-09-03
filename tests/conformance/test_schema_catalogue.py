@@ -142,6 +142,38 @@ def test_every_pdf_extraction_type_publishes_document(
         )
 
 
+def test_every_archetype1_promote_type_publishes_its_fixed_envelope(
+    admin: psycopg.Connection[tuple[object, ...]],
+) -> None:
+    """`field_contract` names only what a type ADDS to the archetype's fixed
+    shape (its own docstring: "what one document type adds to the archetype's
+    fixed shape") — but every ARCHETYPE1_PROMOTE upload actually goes through
+    `src/silver/validate.py::validate_transaction_csv`, which always demands
+    `REQUIRED_COLUMNS` plus a counterparty column. The ERP upload E2E suite
+    (2026-09-01) found the published schema for all five in-scope
+    ARCHETYPE1_PROMOTE types naming only the per-type additions, so a
+    conforming upload against the published contract was missing eight or
+    more mandatory columns. `test_the_catalogue_matches_the_derivation` above
+    proves the seed matches today's derivation; this proves the derivation
+    itself cannot regress into publishing the additions alone again.
+    """
+    seen = False
+    for facts in _facts(admin):
+        if not facts.in_scope or facts.dispatch_mechanism != "ARCHETYPE1_PROMOTE":
+            continue
+        seen = True
+        schema = derive_document_schema(facts)
+        names = {f.name for f in schema.fields}
+        missing = {"doc_number", "doc_date", "line_number", "hsn_sac",
+                   "quantity", "unit_price", "taxable_value", "gst_rate"} - names
+        assert not missing, (
+            f"{facts.doc_type_code}: published schema is missing the fixed "
+            f"archetype-1 columns {missing} — a conforming upload would be "
+            f"rejected as incomplete"
+        )
+    assert seen, "no in-scope ARCHETYPE1_PROMOTE type found — test is vacuous"
+
+
 def test_every_in_scope_type_is_published(
     admin: psycopg.Connection[tuple[object, ...]],
 ) -> None:

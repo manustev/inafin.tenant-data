@@ -129,7 +129,9 @@
       "Bash(find / -type d -iname \"inafin-api*\")",
       "Bash(find / -iname \"0002_onboarding*\")",
       "Bash(find / -iname \"0001_identity_access*\")",
-      "Bash(sort -t_ -k1 -n)"
+      "Bash(sort -t_ -k1 -n)",
+      "Bash(cd /Users/manusteve/workspace/inafin/inafin-tenant-data *)",
+      "Bash(rm -f /Users/manusteve/workspace/inafin/inafin-tenant-data/tests/conformance/test_probe_shareholding.py /tmp/test_probe_shareholding.py)"
     ],
     "additionalDirectories": [
       "/tmp",

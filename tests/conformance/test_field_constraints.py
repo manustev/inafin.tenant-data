@@ -38,11 +38,12 @@ def _stored_fields(
     rows = admin.execute(
         "SELECT doc_type_code, scope, field_name, sql_domain, pattern,"
         "       allowed_values, min_value, max_value, max_length,"
-        "       numeric_precision, numeric_scale"
+        "       numeric_precision, numeric_scale, sql_type"
         "  FROM platform_ref.document_type_field f"
         "  JOIN platform_ref.document_type_schema USING (doc_type_code)"
         "  JOIN platform_ref.document_type USING (doc_type_code)"
-        " WHERE provenance = 'DERIVED' AND table_name IS NOT NULL"
+        " WHERE (provenance = 'DERIVED' AND table_name IS NOT NULL)"
+        "    OR dispatch_mechanism = 'ARCHETYPE1_PROMOTE'"
     ).fetchall()
     return {(str(r[0]), str(r[1]), str(r[2])): r[3:] for r in rows}
 
@@ -70,7 +71,7 @@ def test_every_published_constraint_matches_the_live_ddl(
             c.sql_domain, c.pattern,
             list(c.allowed_values) if c.allowed_values else None,
             c.min_value, c.max_value, c.max_length,
-            c.numeric_precision, c.numeric_scale,
+            c.numeric_precision, c.numeric_scale, c.sql_type,
         )
         got = stored[key]
         if want != got:
@@ -184,18 +185,76 @@ def test_envelope_constraints_are_not_published(
     assert leaked == [], f"envelope constraints published as tenant rules: {leaked}"
 
 
+def test_a_universal_master_fk_vocabulary_is_published_too(
+    admin: psycopg.Connection[tuple[object, ...]]
+) -> None:
+    """`invoice_type`/`supply_type` are constrained by a FOREIGN KEY to
+    `platform_ref.universal_master` (tenant migration 009's `<col>_vt`
+    pinning pattern), not a table CHECK — a CHECK-only reading of
+    `pg_constraint` never sees this vocabulary at all, which is exactly what
+    the ERP upload E2E suite (2026-09-01) found: `SALES_REGISTER.invoice_type`
+    published no `allowed_values` even though the database has always
+    enforced a closed set. Values are the currently-active `universal_master`
+    rows for that `value_type`, alphabetical — same "whole and in order"
+    contract `test_a_vocabulary_is_published_whole_and_in_order` asserts for
+    a CHECK-based vocabulary.
+    """
+    rows = dict(
+        admin.execute(
+            "SELECT field_name, allowed_values FROM platform_ref.document_type_field"
+            " WHERE doc_type_code = 'SALES_REGISTER'"
+            "   AND field_name IN ('invoice_type', 'supply_type')"
+        ).fetchall()
+    )
+    assert rows["invoice_type"] == [
+        "B2B", "B2CL", "B2CS", "DE", "EXP", "SEZWOP", "SEZWP",
+    ]
+    assert rows["supply_type"] == ["COMPOSITE", "GOODS", "MIXED", "SERVICE"]
+
+
+def test_sql_type_names_the_real_column_type(
+    admin: psycopg.Connection[tuple[object, ...]]
+) -> None:
+    """`data_type` stays the coarse CSV-parsing `Kind` on purpose
+    (`document_schema.py`'s own docstring) — `SALES_REGISTER.line_number` and
+    `.qty` both publish `data_type = 'text'`. `sql_type` is where a client
+    actually learns `line_number` is a Postgres `integer` and `qty` a
+    `numeric`, which is what the ERP upload E2E suite's finding named by
+    name.
+    """
+    rows = dict(
+        admin.execute(
+            "SELECT field_name, sql_type FROM platform_ref.document_type_field"
+            " WHERE doc_type_code = 'SALES_REGISTER'"
+            "   AND field_name IN ('line_number', 'qty', 'currency')"
+        ).fetchall()
+    )
+    assert rows == {"line_number": "integer", "qty": "numeric", "currency": "character"}
+
+
 def test_declared_types_publish_no_constraints(
     admin: psycopg.Connection[tuple[object, ...]]
 ) -> None:
     """A DECLARED type's fields come from a registry grammar cell and own no
     table, so there is no constraint to read. Empty is the honest answer;
     publishing zeros or empty arrays would imply the database accepts
-    anything, and `provenance` already tells a client which kind this is."""
+    anything, and `provenance` already tells a client which kind this is.
+
+    ARCHETYPE1_PROMOTE is the one documented exception (see
+    `field_constraints.py::_PUBLISHED_FIELDS`): its FIXED envelope columns
+    (`hsn_sac`, `gst_rate`, ...) are real columns on the shared
+    `transaction_document`/`transaction_line` tables even though the type as
+    a whole is DECLARED — only its PER-TYPE additions (`be_number`,
+    `sez_unit_name`, ...), which land in a jsonb `attributes` column, have
+    nothing to derive and stay unconstrained.
+    """
     stray = admin.execute(
         "SELECT f.doc_type_code, f.field_name"
         "  FROM platform_ref.document_type_field f"
         "  JOIN platform_ref.document_type_schema s USING (doc_type_code)"
+        "  JOIN platform_ref.document_type d USING (doc_type_code)"
         " WHERE s.provenance <> 'DERIVED'"
+        "   AND d.dispatch_mechanism <> 'ARCHETYPE1_PROMOTE'"
         "   AND (f.sql_domain IS NOT NULL OR f.pattern IS NOT NULL"
         "        OR f.allowed_values IS NOT NULL OR f.max_length IS NOT NULL)"
     ).fetchall()

@@ -373,6 +373,38 @@ async def test_a_new_document_type_needs_no_new_code(
     assert lines[0] == manifest.row_count == 6
 
 
+async def test_every_archetype1_promote_type_promotes_end_to_end(
+    app_pool: TenantScopedPool, tenant_a: SeededTenant, admin: psycopg.Connection,
+) -> None:
+    """Every in-scope ARCHETYPE1_PROMOTE type, not a 3-type sample.
+
+    `test_a_new_document_type_needs_no_new_code` above proves the archetype
+    claim with three representative types; this proves the FULL in-scope set
+    writes to Silver, which is a narrower, stronger claim that
+    `test_generated_export_validates_for_every_type` cannot make — that one
+    stops at `validate_transaction_csv`, never reaching the database. The gap
+    between the two is exactly where the ERP upload E2E suite (2026-09-01)
+    found `document_schema.py` publishing a schema a conforming upload could
+    not actually satisfy (shared migration 046): validation against the
+    CONTRACT passed, but nobody had proven a promotion against the DATABASE
+    for anything but three hand-picked types. Read from the registry, not
+    hardcoded, so a twelfth ARCHETYPE1_PROMOTE type is covered automatically.
+    """
+    codes = [
+        str(r[0]) for r in admin.execute(
+            "SELECT doc_type_code FROM platform_ref.document_type"
+            " WHERE dispatch_mechanism = 'ARCHETYPE1_PROMOTE' AND in_scope"
+            " ORDER BY doc_type_code"
+        ).fetchall()
+    ]
+    assert codes, "no in-scope ARCHETYPE1_PROMOTE type found — test is vacuous"
+
+    for code in codes:
+        manifest = await _promote(app_pool, tenant_a, code, _generate(code))
+        assert manifest.document_type == code
+        assert manifest.row_count == 6, f"{code}: expected 6 lines, got {manifest.row_count}"
+
+
 async def test_direction_and_stream_come_from_the_registry(
     app_pool: TenantScopedPool, tenant_a: SeededTenant, admin: psycopg.Connection
 ) -> None:

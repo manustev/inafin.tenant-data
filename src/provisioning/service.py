@@ -28,7 +28,14 @@ from dataclasses import dataclass
 import psycopg
 
 from src.core.errors import ProvisioningError
-from src.core.identifiers import all_roles, all_schemas, bucket_name, validate_slug
+from src.core.identifiers import (
+    all_roles,
+    all_schemas,
+    bucket_name,
+    recon_engine_role,
+    reconciliation_schema,
+    validate_slug,
+)
 from src.migrate.runner import MigrationRunner
 from src.provisioning.objectstore import ObjectStorePort
 
@@ -141,13 +148,18 @@ class ProvisioningService:
                 (slug,),
             )
             if drop_schemas:
-                for schema in all_schemas(slug):
+                # reconciliation/recon_engine (docs/adr/0001) are not part of
+                # all_schemas/all_roles — see identifiers.py — so they are
+                # named explicitly here, or a test tenant's teardown leaks
+                # them (found 2026-09-03: dozens of orphaned
+                # t_<random>_reconciliation schemas from prior test runs).
+                for schema in (*all_schemas(slug), reconciliation_schema(slug)):
                     conn.execute(
                         psycopg.sql.SQL("DROP SCHEMA IF EXISTS {} CASCADE").format(
                             psycopg.sql.Identifier(schema)
                         )
                     )
-                for role in all_roles(slug):
+                for role in (*all_roles(slug), recon_engine_role(slug)):
                     conn.execute(
                         psycopg.sql.SQL("DROP ROLE IF EXISTS {}").format(
                             psycopg.sql.Identifier(role)

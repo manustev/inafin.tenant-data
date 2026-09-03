@@ -36,6 +36,7 @@ from src.extraction.base import (
 )
 from src.extraction.labelvalue import Extracted, NoTextLayer, Partial
 from src.extraction.reader import PypdfReader
+from src.extraction.tablevalue import parse_table_rows
 from src.silver.entity_master import EntityMasterRecord, EntityMasterService
 from src.silver.financial_statement import FinancialStatementRecord, FinancialStatementService
 from src.silver.narrative_contract import NarrativeContractRecord, NarrativeContractService
@@ -76,9 +77,6 @@ SAMPLE_FILE: dict[str, str] = {
 #: is).
 EXPECTED_PARTIAL_MISSING: dict[str, tuple[str, ...]] = {
     "ITC_04_ACKNOWLEDGEMENT": ("reference_number", "event_date"),
-    "SHAREHOLDING_PATTERN": ("as_of_date",),
-    "GSTIN_REGISTER": ("as_of_date",),
-    "DIRECTOR_LIST_WITH_DIN": ("as_of_date",),
     "KMP_LIST": ("as_of_date",),
 }
 
@@ -202,30 +200,322 @@ async def test_extracted_certificate_of_incorporation_writes_an_entity_master_re
     assert row[1] == "U29100MH2015PTC271034"
 
 
-async def test_partial_shareholding_pattern_quarantines(
+async def test_shareholding_pattern_extracts_and_writes_an_entity_master_record(
     tenant_a: SeededTenant,
     admin: psycopg.Connection[tuple[object, ...]],
     extractor_registry: dict[str, DocumentExtractor],
 ) -> None:
+    """`as_of_date` was mislabeled — "As On Date", a label that does not
+    appear anywhere in the specimen — not a genuine tier-1 gap. Shared
+    migration 048 re-points it at "Financial Year", the same line
+    `reference_number` already reads; `_parse_date`'s `.search()` finds the
+    date inside that line's trailing "(as on 31 March 2025)"."""
     extractor = extractor_registry["SHAREHOLDING_PATTERN"]
     pdf_bytes = _read(SAMPLE_FILE["SHAREHOLDING_PATTERN"])
     outcome = extractor.extract(PypdfReader().extract(pdf_bytes).pages)
-    assert isinstance(outcome, Partial)
+    assert isinstance(outcome, Extracted)
+    assert outcome.fields["as_of_date"] == dt.date(2025, 3, 31)
 
-    ingest_id = uuid.uuid4()
     result = await extractor.to_silver(
         outcome, tenant_a.ctx,
-        entity_id=tenant_a.entity_id, ingest_id=ingest_id, pdf_bytes=pdf_bytes,
+        entity_id=tenant_a.entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
     )
-    assert not result.written
+    assert result.written
 
     row = admin.execute(
-        sql.SQL("SELECT reason FROM {}.quarantined_artefact WHERE ingest_id = %s").format(
+        sql.SQL("SELECT master_type, reference_number, as_of_date"
+                 "  FROM {}.entity_master_record WHERE record_id = %s").format(
             sql.Identifier(tenant_a.ctx.silver_schema)
         ),
-        (ingest_id,),
+        (result.record_id,),
     ).fetchone()
-    assert row is not None and "as_of_date" in row[0]
+    assert row is not None
+    assert row[0] == "SHAREHOLDING_PATTERN"
+    assert row[2] == dt.date(2025, 3, 31)
+
+    # The table content — 6 holders x 2 financial-year validity windows,
+    # never captured before this session (`shareholding_pattern_holder`,
+    # tenant migration 032). 12, not 6: the FY24-25/FY23-24 %-holding
+    # columns are two DIFFERENT facts with two different validity windows,
+    # not two columns of one fact.
+    facts = admin.execute(
+        sql.SQL(
+            "SELECT holder_name, pct_holding, valid_from, valid_to"
+            "  FROM {}.shareholding_pattern_holder"
+            " WHERE record_id = %s ORDER BY holder_name, valid_from"
+        ).format(sql.Identifier(tenant_a.ctx.silver_schema)),
+        (result.record_id,),
+    ).fetchall()
+    assert len(facts) == 12
+    by_key = {(r[0], r[2]): r for r in facts}
+    assert by_key[("Arvind Rao Deshmukh (Promoter / MD)", dt.date(2024, 4, 1))] == (
+        "Arvind Rao Deshmukh (Promoter / MD)", 37, dt.date(2024, 4, 1), dt.date(2025, 3, 31),
+    )
+    assert by_key[("Arvind Rao Deshmukh (Promoter / MD)", dt.date(2023, 4, 1))] == (
+        "Arvind Rao Deshmukh (Promoter / MD)", 37, dt.date(2023, 4, 1), dt.date(2024, 3, 31),
+    )
+    assert by_key[("Rajeev Malhotra (Independent Director)", dt.date(2024, 4, 1))][1] == 0.5
+
+
+async def test_shareholding_pattern_resubmission_supersedes_the_fact_rows(
+    tenant_a: SeededTenant,
+    admin: psycopg.Connection[tuple[object, ...]],
+    extractor_registry: dict[str, DocumentExtractor],
+) -> None:
+    """Re-ingesting the same PDF closes the old 12 rows and inserts a fresh
+    12 under the new `record_id` — full-snapshot replace, matching
+    `entity_master_record` itself (tenant migration 032's header)."""
+    extractor = extractor_registry["SHAREHOLDING_PATTERN"]
+    pdf_bytes = _read(SAMPLE_FILE["SHAREHOLDING_PATTERN"])
+    outcome = extractor.extract(PypdfReader().extract(pdf_bytes).pages)
+    assert isinstance(outcome, Extracted)
+
+    entity_id = uuid.uuid4()
+    first = await extractor.to_silver(
+        outcome, tenant_a.ctx, entity_id=entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
+    )
+    second = await extractor.to_silver(
+        outcome, tenant_a.ctx, entity_id=entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
+    )
+    assert first.written and second.written
+    assert first.record_id != second.record_id
+
+    schema = sql.Identifier(tenant_a.ctx.silver_schema)
+    old_open = admin.execute(
+        sql.SQL(
+            "SELECT count(*) FROM {}.shareholding_pattern_holder"
+            " WHERE record_id = %s AND superseded_at IS NULL"
+        ).format(schema),
+        (first.record_id,),
+    ).fetchone()
+    assert old_open == (0,)
+
+    new_open = admin.execute(
+        sql.SQL(
+            "SELECT count(*) FROM {}.shareholding_pattern_holder"
+            " WHERE record_id = %s AND superseded_at IS NULL"
+        ).format(schema),
+        (second.record_id,),
+    ).fetchone()
+    assert new_open == (12,)
+
+
+async def test_director_list_extracts_and_writes_an_entity_master_record(
+    tenant_a: SeededTenant,
+    admin: psycopg.Connection[tuple[object, ...]],
+    extractor_registry: dict[str, DocumentExtractor],
+) -> None:
+    """Same class of mislabeling as SHAREHOLDING_PATTERN. Shared migration 050
+    re-points `as_of_date` at "Source" — the specimen's real provenance line
+    ("Source: ... cross-verified as at 31 March 2025.") — not "List Date",
+    which appears nowhere in the document."""
+    extractor = extractor_registry["DIRECTOR_LIST_WITH_DIN"]
+    pdf_bytes = _read(SAMPLE_FILE["DIRECTOR_LIST_WITH_DIN"])
+    outcome = extractor.extract(PypdfReader().extract(pdf_bytes).pages)
+    assert isinstance(outcome, Extracted)
+    assert outcome.fields["as_of_date"] == dt.date(2025, 3, 31)
+
+    result = await extractor.to_silver(
+        outcome, tenant_a.ctx,
+        entity_id=tenant_a.entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
+    )
+    assert result.written
+
+    row = admin.execute(
+        sql.SQL("SELECT master_type, reference_number, as_of_date"
+                 "  FROM {}.entity_master_record WHERE record_id = %s").format(
+            sql.Identifier(tenant_a.ctx.silver_schema)
+        ),
+        (result.record_id,),
+    ).fetchone()
+    assert row is not None
+    assert row[0] == "DIRECTOR_LIST_WITH_DIN"
+    assert row[2] == dt.date(2025, 3, 31)
+
+    # The table content — 6 directors, replicating the SHAREHOLDING_PATTERN
+    # table-fact pattern (`director_list_din`, tenant migration 034).
+    facts = admin.execute(
+        sql.SQL(
+            "SELECT name, din, designation, currently_active"
+            "  FROM {}.director_list_din"
+            " WHERE record_id = %s ORDER BY name"
+        ).format(sql.Identifier(tenant_a.ctx.silver_schema)),
+        (result.record_id,),
+    ).fetchall()
+    assert len(facts) == 6
+    by_din = {r[1]: r for r in facts}
+    assert by_din["01234567"] == (
+        "Arvind Rao Deshmukh", "01234567", "Managing Director", "Yes",
+    )
+    assert by_din["05678901"] == (
+        "Gerald Fernandes", "05678901", "Non-Executive Director", "No (resigned)",
+    )
+
+
+async def test_director_list_resubmission_supersedes_the_fact_rows(
+    tenant_a: SeededTenant,
+    admin: psycopg.Connection[tuple[object, ...]],
+    extractor_registry: dict[str, DocumentExtractor],
+) -> None:
+    """The same full-snapshot-replace supersede as SHAREHOLDING_PATTERN, now
+    exercised through `TableFactExtractor`'s GENERIC (not FY-expanding)
+    `_extra_silver_write` — the code path every table-shaped type besides
+    `SHAREHOLDING_PATTERN` shares."""
+    extractor = extractor_registry["DIRECTOR_LIST_WITH_DIN"]
+    pdf_bytes = _read(SAMPLE_FILE["DIRECTOR_LIST_WITH_DIN"])
+    outcome = extractor.extract(PypdfReader().extract(pdf_bytes).pages)
+    assert isinstance(outcome, Extracted)
+
+    entity_id = uuid.uuid4()
+    first = await extractor.to_silver(
+        outcome, tenant_a.ctx, entity_id=entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
+    )
+    second = await extractor.to_silver(
+        outcome, tenant_a.ctx, entity_id=entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
+    )
+    assert first.written and second.written
+    assert first.record_id != second.record_id
+
+    schema = sql.Identifier(tenant_a.ctx.silver_schema)
+    old_open = admin.execute(
+        sql.SQL(
+            "SELECT count(*) FROM {}.director_list_din"
+            " WHERE record_id = %s AND superseded_at IS NULL"
+        ).format(schema),
+        (first.record_id,),
+    ).fetchone()
+    assert old_open == (0,)
+
+    new_open = admin.execute(
+        sql.SQL(
+            "SELECT count(*) FROM {}.director_list_din"
+            " WHERE record_id = %s AND superseded_at IS NULL"
+        ).format(schema),
+        (second.record_id,),
+    ).fetchone()
+    assert new_open == (6,)
+
+
+async def test_gstin_register_extracts_and_writes_an_entity_master_record(
+    tenant_a: SeededTenant,
+    admin: psycopg.Connection[tuple[object, ...]],
+    extractor_registry: dict[str, DocumentExtractor],
+) -> None:
+    """`as_of_date` was mislabeled, not a genuine tier-1 gap — the specimen
+    states no "Register Date" line, but DOES carry a real as-of date on its
+    table header, "Status (as on 31-Mar-2025)". Shared migration 058
+    re-points the label there; `_find_value`'s new colon-less date fallback
+    (`src/extraction/labelvalue.py`, mirroring the existing `money` one)
+    reconstructs it across the line wrap `pypdf` introduces mid-token."""
+    extractor = extractor_registry["GSTIN_REGISTER"]
+    pdf_bytes = _read(SAMPLE_FILE["GSTIN_REGISTER"])
+    outcome = extractor.extract(PypdfReader().extract(pdf_bytes).pages)
+    assert isinstance(outcome, Extracted)
+    assert outcome.fields["as_of_date"] == dt.date(2025, 3, 31)
+
+    result = await extractor.to_silver(
+        outcome, tenant_a.ctx,
+        entity_id=tenant_a.entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
+    )
+    assert result.written
+
+    row = admin.execute(
+        sql.SQL("SELECT master_type, reference_number, as_of_date"
+                 "  FROM {}.entity_master_record WHERE record_id = %s").format(
+            sql.Identifier(tenant_a.ctx.silver_schema)
+        ),
+        (result.record_id,),
+    ).fetchone()
+    assert row is not None
+    assert row[0] == "GSTIN_REGISTER"
+    assert row[2] == dt.date(2025, 3, 31)
+
+    # The table content — 5 GSTINs, replicating the SHAREHOLDING_PATTERN
+    # table-fact pattern (`gstin_register_entry`, tenant migration 033).
+    facts = admin.execute(
+        sql.SQL(
+            "SELECT gstin, state, status FROM {}.gstin_register_entry"
+            " WHERE record_id = %s ORDER BY gstin"
+        ).format(sql.Identifier(tenant_a.ctx.silver_schema)),
+        (result.record_id,),
+    ).fetchall()
+    assert len(facts) == 5
+    by_gstin = {r[0]: r for r in facts}
+    assert by_gstin["27AABCM4521F1Z5"] == ("27AABCM4521F1Z5", "Maharashtra", "Active")
+    assert by_gstin["06AABCM4521F1ZM"][2].startswith("Suspended")
+
+
+async def test_gstin_register_resubmission_supersedes_the_fact_rows(
+    tenant_a: SeededTenant,
+    admin: psycopg.Connection[tuple[object, ...]],
+    extractor_registry: dict[str, DocumentExtractor],
+) -> None:
+    """Same full-snapshot-replace supersede as `test_director_list_
+    resubmission_supersedes_the_fact_rows` — a second real exercise of
+    `TableFactExtractor`'s generic `_extra_silver_write`."""
+    extractor = extractor_registry["GSTIN_REGISTER"]
+    pdf_bytes = _read(SAMPLE_FILE["GSTIN_REGISTER"])
+    outcome = extractor.extract(PypdfReader().extract(pdf_bytes).pages)
+    assert isinstance(outcome, Extracted)
+
+    entity_id = uuid.uuid4()
+    first = await extractor.to_silver(
+        outcome, tenant_a.ctx, entity_id=entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
+    )
+    second = await extractor.to_silver(
+        outcome, tenant_a.ctx, entity_id=entity_id, ingest_id=uuid.uuid4(), pdf_bytes=pdf_bytes,
+    )
+    assert first.written and second.written
+    assert first.record_id != second.record_id
+
+    schema = sql.Identifier(tenant_a.ctx.silver_schema)
+    old_open = admin.execute(
+        sql.SQL(
+            "SELECT count(*) FROM {}.gstin_register_entry"
+            " WHERE record_id = %s AND superseded_at IS NULL"
+        ).format(schema),
+        (first.record_id,),
+    ).fetchone()
+    assert old_open == (0,)
+
+    new_open = admin.execute(
+        sql.SQL(
+            "SELECT count(*) FROM {}.gstin_register_entry"
+            " WHERE record_id = %s AND superseded_at IS NULL"
+        ).format(schema),
+        (second.record_id,),
+    ).fetchone()
+    assert new_open == (5,)
+
+
+def test_kmp_list_table_grammar_is_ready_despite_the_header_gap(
+    extractor_registry: dict[str, DocumentExtractor],
+) -> None:
+    """Same reasoning as `test_gstin_register_table_grammar_is_ready_
+    despite_the_header_gap` — `KMP_LIST` stays `Partial`, shared migration
+    057 reverted 055's attempt to drop `as_of_date` to optional, and the
+    table grammar is proven ready independent of that gap."""
+    extractor = extractor_registry["KMP_LIST"]
+    assert isinstance(extractor, EntityMasterExtractor)
+    pdf_bytes = _read(SAMPLE_FILE["KMP_LIST"])
+    pages = PypdfReader().extract(pdf_bytes).pages
+
+    outcome = extractor.extract(pages)
+    assert isinstance(outcome, Partial)
+    assert outcome.missing == ("as_of_date",)
+
+    table_spec = extractor._table_spec  # type: ignore[attr-defined]
+    rows = parse_table_rows(pages, table_spec)
+    assert len(rows) == 4
+    by_name = {r["name"]: r for r in rows}
+    assert by_name["Arvind Rao Deshmukh"] == {
+        "name": "Arvind Rao Deshmukh", "designation": "Managing Director & CEO",
+        "din": "01234567", "membership": "—",
+    }
+    assert by_name["Prakash Menon"] == {
+        "name": "Prakash Menon", "designation": "Chief Financial Officer",
+        "din": "N/A (not a director)", "membership": "PAN AFXPM7821L",
+    }
 
 
 async def test_related_party_disclosure_writes_a_sparse_financial_statement_extract(

@@ -97,6 +97,25 @@ def all_roles(slug: str) -> tuple[str, str, str]:
     return (ingest_role(slug), recon_role(slug), support_role(slug))
 
 
+def reconciliation_schema(slug: str) -> str:
+    """inafin-reconciliation-engine's own output schema.
+
+    Not one of the three core pipeline layers (docs/adr/0001) — its table DDL
+    is the engine's own to manage, not this repo's. Kept out of
+    ``all_schemas``/``all_roles`` deliberately, so every existing bronze/
+    silver/gold call site is unaffected by its existence.
+    """
+    return f"t_{validate_slug(slug)}_reconciliation"
+
+
+def recon_engine_role(slug: str) -> str:
+    """inafin-reconciliation-engine. SELECT on an approved subset of silver
+    v1_ views only (not the full v1_ surface recon/support get). Full rights
+    on its own reconciliation schema only — no bronze, silver base table,
+    gold, or other-tenant access. See docs/adr/0001."""
+    return f"t_{validate_slug(slug)}_recon_engine"
+
+
 # --- Object store -----------------------------------------------------------
 
 

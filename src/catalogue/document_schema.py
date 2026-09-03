@@ -45,9 +45,10 @@ from enum import StrEnum
 
 from src.extraction.spec import parse_extraction_spec
 from src.silver import sales_register
-from src.silver.contract import parse_contract
+from src.silver.contract import Counterparty, parse_contract
 from src.silver.registers.catalog import SPEC_BY_DOC_TYPE
 from src.silver.registers.spec import Column, Kind
+from src.silver.validate import REQUIRED_COLUMNS as _TRANSACTION_REQUIRED_COLUMNS
 
 #: `SALES_REGISTER` is the one type with a header/line split and the one type
 #: with a hand-written loader rather than a `RegisterSpec` — see
@@ -223,25 +224,104 @@ def _from_sales_register() -> tuple[SchemaField, ...]:
     return tuple(fields)
 
 
+#: The fixed archetype-1 columns, in the order a client should see them.
+#: Required-ness for the ones in `_TRANSACTION_REQUIRED_COLUMNS` is a
+#: membership test against `src/silver/validate.py`'s own constant — the
+#: loader's actual requirement, never a second copy of it that could drift.
+#: `counterparty_gstin`/`counterparty_name` are not in that frozenset because
+#: their requiredness depends on `Counterparty`, handled separately below.
+#: The rest (`currency`, `description`, `uom`, the four tax-head amounts,
+#: `itc_amount`) are genuinely optional columns `validate_transaction_csv`
+#: reads via `row.get(...)` with a default — real, accepted columns, not a
+#: guess.
+_TRANSACTION_HEADER_ENVELOPE: tuple[str, ...] = ("doc_number", "doc_date", "currency")
+_TRANSACTION_LINE_ENVELOPE: tuple[str, ...] = (
+    "line_number", "hsn_sac", "description", "quantity", "uom", "unit_price",
+    "taxable_value", "gst_rate", "cgst_amount", "sgst_amount", "igst_amount",
+    "cess_amount", "itc_amount",
+)
+
+#: Coarse `data_type` per envelope column — the same "what the CSV cell
+#: literally is" reasoning `_from_sales_register` documents, not a guess at
+#: the underlying domain. `document_type_field`'s constraint columns
+#: (migration 041/042) are DERIVED types only (`field_constraints.py`'s own
+#: docstring), so an ARCHETYPE1_PROMOTE (DECLARED) column has no second place
+#: to carry a real Postgres type — this is deliberately the coarse answer.
+_TRANSACTION_ENVELOPE_TYPES: dict[str, str] = {
+    "doc_number": "text", "doc_date": "date", "currency": "text",
+    "counterparty_gstin": "text", "counterparty_name": "text",
+    "line_number": "integer", "hsn_sac": "text", "description": "text",
+    "quantity": "decimal", "uom": "text", "unit_price": "decimal",
+    "taxable_value": "decimal", "gst_rate": "decimal",
+    "cgst_amount": "decimal", "sgst_amount": "decimal",
+    "igst_amount": "decimal", "cess_amount": "decimal", "itc_amount": "decimal",
+}
+
+
 def _from_field_contract(contract: str) -> tuple[SchemaField, ...]:
+    """An ARCHETYPE1_PROMOTE type's full upload shape.
+
+    THE GAP THIS CLOSES. `field_contract` names only what a type ADDS on top
+    of the archetype's fixed shape (module docstring: "what one document type
+    adds to the archetype's fixed shape") — but this function used to publish
+    ONLY those additions, never the fixed columns underneath them. Every
+    ARCHETYPE1_PROMOTE upload actually goes through
+    `src/silver/validate.py::validate_transaction_csv`, which always demands
+    `doc_number`, `doc_date`, `line_number`, `hsn_sac`, `quantity`,
+    `unit_price`, `taxable_value`, `gst_rate` (`REQUIRED_COLUMNS`) plus a
+    counterparty column decided by `Counterparty` — none of which
+    `field_contract` ever names, so none of it was ever published. Found by
+    the ERP upload E2E suite (2026-09-01) against all five in-scope
+    ARCHETYPE1_PROMOTE types at once, because the gap is systemic, not
+    per-type: `EWAY_BILL_OUTWARD_REGISTER`, `ICEGATE_BILL_OF_ENTRY`,
+    `ICEGATE_SHIPPING_BILL`, `IRN_IRP_REGISTER`, `SEZ_BILL_OF_ENTRY` are the
+    entire in-scope set for this mechanism.
+
+    The envelope is read off `validate.py`'s own `REQUIRED_COLUMNS` and
+    `Counterparty` handling, not restated by hand, for the same reason
+    `_from_sales_register` reads `REQUIRED_VALUES` off its loader.
+    """
     parsed = parse_contract(contract)
     fields: list[SchemaField] = []
     ordinal = 1
-    for attrs, scope in (
-        (parsed.doc_attributes, Scope.HEADER),
-        (parsed.line_attributes, Scope.LINE),
-    ):
-        for attr in attrs:
-            fields.append(
-                SchemaField(
-                    ordinal=ordinal,
-                    name=attr.name,
-                    scope=scope,
-                    data_type=attr.type,
-                    required=attr.required,
-                )
+
+    def add(name: str, scope: Scope, required: bool) -> None:
+        nonlocal ordinal
+        fields.append(
+            SchemaField(
+                ordinal=ordinal, name=name, scope=scope,
+                data_type=_TRANSACTION_ENVELOPE_TYPES[name], required=required,
             )
-            ordinal += 1
+        )
+        ordinal += 1
+
+    for name in _TRANSACTION_HEADER_ENVELOPE:
+        add(name, Scope.HEADER, name in _TRANSACTION_REQUIRED_COLUMNS)
+
+    # A FOREIGN counterparty has no GSTIN to supply — validate.py REJECTS one
+    # if present — so the column is not published at all for that case,
+    # rather than published as an optional field a tenant could legally send.
+    if parsed.counterparty is not Counterparty.FOREIGN:
+        add("counterparty_gstin", Scope.HEADER, parsed.counterparty is Counterparty.REQUIRED)
+    add("counterparty_name", Scope.HEADER, parsed.counterparty is Counterparty.FOREIGN)
+
+    for attr in parsed.doc_attributes:
+        fields.append(
+            SchemaField(ordinal=ordinal, name=attr.name, scope=Scope.HEADER,
+                        data_type=attr.type, required=attr.required)
+        )
+        ordinal += 1
+
+    for name in _TRANSACTION_LINE_ENVELOPE:
+        add(name, Scope.LINE, name in _TRANSACTION_REQUIRED_COLUMNS)
+
+    for attr in parsed.line_attributes:
+        fields.append(
+            SchemaField(ordinal=ordinal, name=attr.name, scope=Scope.LINE,
+                        data_type=attr.type, required=attr.required)
+        )
+        ordinal += 1
+
     return tuple(fields)
 
 

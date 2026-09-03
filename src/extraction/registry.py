@@ -46,11 +46,32 @@ from src.extraction.base import (
     NarrativeContractExtractor,
     ProceedingEventExtractor,
 )
+from src.extraction.entity_master_types import (
+    DirectorListExtractor,
+    GstinRegisterExtractor,
+    KmpListExtractor,
+    ShareholdingPatternExtractor,
+    TableFactExtractor,
+)
 from src.extraction.labelvalue import LabelSpec
 from src.extraction.register_types import REGISTER_DOCUMENT_EXTRACTORS
 from src.extraction.spec import parse_extraction_spec
 from src.extraction.transaction_types import TRANSACTION_DOCUMENT_EXTRACTOR_CLASS_BY_DOC_TYPE
 from src.provisioning.objectstore import ObjectStorePort
+
+#: Archetype 7 rows whose table content needs a `TableFactExtractor`
+#: subclass, not the generic `EntityMasterExtractor` — same small, fixed-dict
+#: shape `TRANSACTION_DOCUMENT_EXTRACTOR_CLASS_BY_DOC_TYPE` already uses for
+#: archetype 1's two bespoke PDF types. `RELATED_PARTY_REGISTER` is
+#: deliberately absent — see `entity_master_types.py`'s module docstring for
+#: why its table is not built. Every other archetype-7 doc_type_code still
+#: gets the generic base class below, unchanged.
+_ENTITY_MASTER_EXTRACTOR_CLASS_BY_DOC_TYPE: dict[str, type[TableFactExtractor]] = {
+    "SHAREHOLDING_PATTERN": ShareholdingPatternExtractor,
+    "GSTIN_REGISTER": GstinRegisterExtractor,
+    "DIRECTOR_LIST_WITH_DIN": DirectorListExtractor,
+    "KMP_LIST": KmpListExtractor,
+}
 
 
 class _ArchetypeExtractorCtor(Protocol):
@@ -135,6 +156,33 @@ async def build_extractor_registry(
                 continue
             registry[doc_type_code] = transaction_cls(
                 pool, doc_type_code=doc_type_code, label_spec=spec.label_spec, store=store,
+            )
+            continue
+
+        fact_cls = (
+            _ENTITY_MASTER_EXTRACTOR_CLASS_BY_DOC_TYPE.get(doc_type_code)
+            if archetype == 7
+            else None
+        )
+        if fact_cls is not None:
+            if spec.table is None:
+                # A registry row that names this doc_type_code as table-shaped
+                # but whose extraction_spec cell has no table_pattern/
+                # table_columns clause is a data-integrity failure, not a
+                # shape this loop should quietly fall back from — same rule
+                # `derive_document_schema` applies to a REGISTER_LOADER row
+                # with no RegisterSpec entry.
+                raise ValueError(
+                    f"{doc_type_code}: dispatch requires a table extraction "
+                    f"but extraction_spec declares no table_pattern/table_columns"
+                )
+            registry[doc_type_code] = fact_cls(
+                pool,
+                doc_type_code=doc_type_code,
+                label_spec=spec.label_spec,
+                table_spec=spec.table,
+                authority=spec.authority,
+                store=store,
             )
             continue
 

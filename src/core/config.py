@@ -53,6 +53,14 @@ class Settings(BaseSettings):
     # lifecycle policy — or by root.
     bronze_retention_days: int = 2190
 
+    # --- Extraction (PDF facts) ---
+    # The month an Indian financial year starts (April). A table-row extractor
+    # deriving a validity window from a "FY24-25" column header needs this
+    # number, and it must be a config value, not a literal `4` inside
+    # extraction code — a future non-India deployment changes this one
+    # setting, not the extraction logic itself (src/extraction/fiscal_year.py).
+    fiscal_year_start_month: int = 4
+
     # --- Kafka (the doorbell) ---
     kafka_bootstrap: str = "localhost:9092"
     kafka_batch_topic: str = "inafin.tenant.batch_ready"

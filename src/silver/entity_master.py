@@ -11,6 +11,7 @@ import datetime as dt
 import json
 import logging
 import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 
 import psycopg
@@ -66,13 +67,29 @@ class EntityMasterService:
         logger.info("superseded %s with %s for %s", prior_id, new_id, ctx)
         return new_id
 
-    async def record_or_supersede(self, ctx: TenantContext, rec: EntityMasterRecord) -> uuid.UUID:
+    async def record_or_supersede(
+        self,
+        ctx: TenantContext,
+        rec: EntityMasterRecord,
+        *,
+        on_write: Callable[
+            [psycopg.AsyncConnection[tuple[object, ...]], uuid.UUID, uuid.UUID | None],
+            Awaitable[None],
+        ]
+        | None = None,
+    ) -> uuid.UUID:
         """Record this row, superseding a current one if it exists.
 
         The key is `entity_master_record_current_uq`'s columns exactly — see
         `src/silver/supersede.py`. A NATURAL key: the master record's own
         reference number (a CIN, a DIN, a registration number). A refreshed
         snapshot of the same registration supersedes.
+
+        `on_write`, if given, runs INSIDE this same transaction after the
+        header row is inserted — `(conn, new_record_id, prior_record_id)` —
+        the hook a table-shaped archetype-7 type (`ShareholdingPatternExtractor`
+        and friends) uses to write its fact rows atomically with the header,
+        rather than as a second, separately-committed write.
         """
         async with self._pool.transaction(ctx, Role.INGEST) as conn:
             prior_id = await close_current(
@@ -87,6 +104,8 @@ class EntityMasterService:
                 },
             )
             new_id = await self._insert(conn, ctx, rec, prior_id=prior_id)
+            if on_write is not None:
+                await on_write(conn, new_id, prior_id)
         logger.info(
             "recorded %s %s for %s (superseding %s)",
             rec.master_type, rec.reference_number, ctx, prior_id,

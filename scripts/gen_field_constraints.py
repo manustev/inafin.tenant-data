@@ -122,7 +122,8 @@ def render(constraints: list[FieldConstraint], rules: list[SchemaRule]) -> str:
         w(f"    max_value = {_num(c.max_value)},")
         w(f"    max_length = {_int(c.max_length)},")
         w(f"    numeric_precision = {_int(c.numeric_precision)},")
-        w(f"    numeric_scale = {_int(c.numeric_scale)}")
+        w(f"    numeric_scale = {_int(c.numeric_scale)},")
+        w(f"    sql_type = {q(c.sql_type) if c.sql_type else 'NULL'}")
         w(f"  WHERE doc_type_code = {q(c.doc_type_code)}")
         w(f"    AND scope = {q(c.scope)}")
         w(f"    AND field_name = {q(c.field_name)};")
@@ -148,7 +149,7 @@ def _has_any(c: FieldConstraint) -> bool:
         v is not None
         for v in (
             c.sql_domain, c.pattern, c.allowed_values, c.min_value, c.max_value,
-            c.max_length, c.numeric_precision,
+            c.max_length, c.numeric_precision, c.sql_type,
         )
     )
 

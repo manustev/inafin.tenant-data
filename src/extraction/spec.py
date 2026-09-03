@@ -1,4 +1,4 @@
-"""The per-document-type extraction spec, parsed from the registry.
+r"""The per-document-type extraction spec, parsed from the registry.
 
 Corrective refactor (2026-08-11): the extraction work first built as 36
 `ClassVar`-only Python subclasses (`entitlement_types.py`, `entity_master_
@@ -31,6 +31,9 @@ Clauses, separated by `;`:
                 (required, may be empty — `fields=` — for a type whose
                 specimens have no clean label:value line at all, e.g. every
                 archetype-8 narrative contract)
+    table_pattern, table_columns
+                the type's REPEATING table, if it has one — both-or-neither
+                (optional; most types have no table at all). See below.
 
 A field token is `name:type[!]:"Label Text"` — the same `name:type!`
 shorthand `field_contract` already uses, with a quoted PDF label appended.
@@ -38,6 +41,19 @@ Types are `src/extraction/labelvalue.py`'s `FIELD_TYPES` vocabulary (`text`,
 `date`, `date_range`, `money`, `int`, `gstin`, `hsn`) — reused, not
 reinvented, so this grammar cannot drift from what `parse_label_value`
 actually accepts.
+
+**`table_pattern`/`table_columns`** — for a document whose real content is a
+table, not header facts (`SHAREHOLDING_PATTERN`'s shareholder list, first
+built against this grammar — see `src/extraction/tablevalue.py`):
+
+    table_pattern="(?P<holder>.+?)\s+(?P<shares>[\d,]+)\s+(?P<pct1>[\d.]+)%\s+(?P<pct2>[\d.]+)%\s+(?P<pledged>Yes|No)";table_columns=holder:text,shares:money,pct1:money,pct2:money,pledged:text
+
+`table_pattern` is ONE quoted regex with a named group per column, matched
+whole against each row (`re.fullmatch` — no need to hand-write `^`/`$`).
+`table_columns` is `name:type` pairs and must name EXACTLY the regex's named
+groups, in either order — checked at parse time, same strictness as every
+other clause here. Both are optional but must appear together; a type with
+no table declares neither.
 """
 
 from __future__ import annotations
@@ -57,7 +73,10 @@ class SpecError(ValueError):
 
 
 _NAME_RE: Final = re.compile(r"^[a-z][a-z0-9_]*$")
-_CLAUSE_KEYS: Final[frozenset[str]] = frozenset({"authority", "fields"})
+_CLAUSE_KEYS: Final[frozenset[str]] = frozenset(
+    {"authority", "fields", "table_pattern", "table_columns"}
+)
+_COLUMN_RE: Final = re.compile(r"^(?P<name>[a-z][a-z0-9_]*):(?P<type>[a-z_]+)$")
 
 #: `name:type[!]:"Label Text"` — trailing `!` optional (defaults to required,
 #: matching `field_contract`'s convention and `LabelField.required`'s
@@ -77,11 +96,32 @@ class ExtractionField:
 
 
 @dataclass(frozen=True, slots=True)
+class TableColumn:
+    name: str
+    type: str
+
+
+@dataclass(frozen=True, slots=True)
+class TableSpec:
+    """One repeating table row's shape — the colon-less counterpart to
+    `LabelSpec`. `pattern` is ONE regex with a named group per column; a row
+    either matches whole or is not a row of this table at all (a header/
+    footer/title line simply fails to match and is skipped), unlike
+    `Label: Value` binding, which finds each fact independently.
+    """
+
+    pattern: re.Pattern[str]
+    columns: tuple[TableColumn, ...]
+
+
+@dataclass(frozen=True, slots=True)
 class ExtractionSpec:
-    """What one document type needs `parse_label_value` to look for."""
+    """What one document type needs `parse_label_value` (and, if declared,
+    `parse_table_rows`) to look for."""
 
     authority: str | None
     fields: tuple[ExtractionField, ...]
+    table: TableSpec | None = None
 
     @property
     def label_spec(self) -> LabelSpec:
@@ -127,6 +167,62 @@ def _parse_fields(raw: str) -> tuple[ExtractionField, ...]:
     return tuple(out)
 
 
+def _parse_table_columns(raw: str) -> tuple[TableColumn, ...]:
+    out: list[TableColumn] = []
+    seen: set[str] = set()
+    for token in (t.strip() for t in raw.split(",")):
+        if not token:
+            continue
+        m = _COLUMN_RE.match(token)
+        if not m:
+            raise SpecError(f"table column {token!r} must be name:type")
+        name, type_name = m.group("name"), m.group("type")
+        if type_name not in FIELD_TYPES:
+            raise SpecError(
+                f"table column {name!r} has unknown type {type_name!r}; "
+                f"known types: {', '.join(sorted(FIELD_TYPES))}"
+            )
+        if name in seen:
+            raise SpecError(f"table column {name!r} declared twice")
+        seen.add(name)
+        out.append(TableColumn(name=name, type=type_name))
+    return tuple(out)
+
+
+def _parse_table(clauses: dict[str, str]) -> TableSpec | None:
+    """`table_pattern`/`table_columns` are both-or-neither: a regex with no
+    declared columns has nothing to coerce its groups against, and declared
+    columns with no regex have no row to apply them to."""
+    has_pattern = "table_pattern" in clauses
+    has_columns = "table_columns" in clauses
+    if not has_pattern and not has_columns:
+        return None
+    if has_pattern != has_columns:
+        raise SpecError("table_pattern and table_columns must both be declared, or neither")
+
+    raw_pattern = clauses["table_pattern"]
+    if not (raw_pattern.startswith('"') and raw_pattern.endswith('"') and len(raw_pattern) >= 2):
+        raise SpecError('table_pattern must be a quoted regex: table_pattern="..."')
+    try:
+        pattern = re.compile(raw_pattern[1:-1])
+    except re.error as exc:
+        raise SpecError(f"table_pattern is not a valid regex: {exc}") from None
+
+    columns = _parse_table_columns(clauses["table_columns"])
+    if not columns:
+        raise SpecError("table_columns must declare at least one column")
+
+    group_names = set(pattern.groupindex)
+    column_names = {c.name for c in columns}
+    if group_names != column_names:
+        raise SpecError(
+            f"table_pattern's named groups {sorted(group_names)} must exactly match "
+            f"table_columns {sorted(column_names)}"
+        )
+
+    return TableSpec(pattern=pattern, columns=columns)
+
+
 def parse_extraction_spec(raw: str) -> ExtractionSpec:
     """Parse one `extraction_spec` cell. Raises `SpecError` on anything odd.
 
@@ -154,8 +250,12 @@ def parse_extraction_spec(raw: str) -> ExtractionSpec:
 
     authority = clauses.get("authority") or None
     fields = _parse_fields(clauses["fields"])
+    table = _parse_table(clauses)
 
-    return ExtractionSpec(authority=authority, fields=fields)
+    return ExtractionSpec(authority=authority, fields=fields, table=table)
 
 
-__all__ = ["ExtractionField", "ExtractionSpec", "SpecError", "parse_extraction_spec"]
+__all__ = [
+    "ExtractionField", "ExtractionSpec", "SpecError", "TableColumn", "TableSpec",
+    "parse_extraction_spec",
+]

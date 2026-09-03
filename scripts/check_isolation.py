@@ -25,7 +25,12 @@ from dataclasses import asdict, dataclass
 import psycopg
 
 from src.core.config import get_settings
-from src.core.identifiers import all_roles, all_schemas
+from src.core.identifiers import (
+    all_roles,
+    all_schemas,
+    recon_engine_role,
+    reconciliation_schema,
+)
 
 WRITE_PRIVILEGES = frozenset({"INSERT", "UPDATE", "DELETE", "TRUNCATE"})
 
@@ -102,8 +107,10 @@ def check(conn: psycopg.Connection[tuple[object, ...]]) -> list[Finding]:
     for slug in slugs:
         bronze, silver, gold = all_schemas(slug)
         ingest, recon, support = all_roles(slug)
+        reconciliation = reconciliation_schema(slug)
+        recon_engine = recon_engine_role(slug)
 
-        for schema in (bronze, silver, gold):
+        for schema in (bronze, silver, gold, reconciliation):
             if not conn.execute(
                 "SELECT 1 FROM pg_namespace WHERE nspname = %s", (schema,)
             ).fetchone():
@@ -143,7 +150,7 @@ def check(conn: psycopg.Connection[tuple[object, ...]]) -> list[Finding]:
                     )
                 )
 
-        for role in (ingest, recon, support):
+        for role in (ingest, recon, support, recon_engine):
             if not conn.execute(
                 "SELECT 1 FROM pg_roles WHERE rolname = %s", (role,)
             ).fetchone():
@@ -151,13 +158,39 @@ def check(conn: psycopg.Connection[tuple[object, ...]]) -> list[Finding]:
                     Finding("role-exists", "CRITICAL", f"{slug}: missing role {role}")
                 )
 
+        # recon_engine holds CREATE on its own schema, and only its own
+        # (docs/adr/0001, reversed shared migration 061) — the engine team
+        # owns table DDL there. This regresses the moment CREATE leaks to
+        # any OTHER role on the reconciliation schema, or to recon_engine on
+        # anything but its own schema.
+        for other in slugs:
+            other_reconciliation = reconciliation_schema(other)
+            for role, expect_create in (
+                (recon_engine, other == slug),
+                (ingest, False),
+                (recon, False),
+                (support, False),
+            ):
+                got = conn.execute(
+                    "SELECT has_schema_privilege(%s, %s, 'CREATE')",
+                    (role, other_reconciliation),
+                ).fetchone()
+                if bool(got and got[0]) != expect_create:
+                    findings.append(
+                        Finding(
+                            "recon-engine-create-scoped-to-own-schema", "CRITICAL",
+                            f"{role} CREATE on {other_reconciliation} is "
+                            f"{bool(got and got[0])}, expected {expect_create}",
+                        )
+                    )
+
         # Cross-tenant USAGE: the core property. Any tenant role holding USAGE
         # on another tenant's schema is a breach, not a warning.
         for other in slugs:
             if other == slug:
                 continue
-            for other_schema in all_schemas(other):
-                for role in (ingest, recon, support):
+            for other_schema in (*all_schemas(other), reconciliation_schema(other)):
+                for role in (ingest, recon, support, recon_engine):
                     got = conn.execute(
                         "SELECT has_schema_privilege(%s, %s, 'USAGE')", (role, other_schema)
                     ).fetchone()
@@ -177,7 +210,7 @@ def check(conn: psycopg.Connection[tuple[object, ...]]) -> list[Finding]:
             JOIN pg_class c ON c.relname = g.table_name AND c.relnamespace = n.oid
             WHERE g.grantee = ANY(%s)
             """,
-            ([ingest, recon, support],),
+            ([ingest, recon, support, recon_engine],),
         ).fetchall()
 
         for grantee, schema, table, priv, relkind in grants:
@@ -223,6 +256,37 @@ def check(conn: psycopg.Connection[tuple[object, ...]]) -> list[Finding]:
                     Finding("recon-no-bronze", "CRITICAL",
                             f"{recon} has {priv} on {schema}.{table}")
                 )
+            # recon_engine (inafin-reconciliation-engine, docs/adr/0001) is
+            # scoped to an allowlisted subset of silver v1_ views plus its own
+            # reconciliation schema — nothing on bronze, gold, or a silver
+            # base table, ever.
+            if grantee == recon_engine and schema in (bronze, gold):
+                findings.append(
+                    Finding(
+                        "recon-engine-scoped-to-own-schema", "CRITICAL",
+                        f"{recon_engine} has {priv} on {schema}.{table}",
+                    )
+                )
+            if (
+                grantee == recon_engine
+                and schema == silver
+                and relkind == "r"
+                and table != "__schema_identity"
+            ):
+                findings.append(
+                    Finding(
+                        "recon-engine-no-silver-base-tables", "CRITICAL",
+                        f"{recon_engine} has {priv} on base table {schema}.{table}",
+                    )
+                )
+            # The reconciliation schema belongs to recon_engine alone.
+            if schema == reconciliation and grantee in (ingest, recon, support):
+                findings.append(
+                    Finding(
+                        "reconciliation-schema-recon-engine-only", "CRITICAL",
+                        f"{grantee} has {priv} on {schema}.{table}",
+                    )
+                )
             # The guard's anchor must be immutable to every runtime role.
             if table == "__schema_identity" and priv in WRITE_PRIVILEGES:
                 findings.append(
@@ -265,7 +329,7 @@ def check(conn: psycopg.Connection[tuple[object, ...]]) -> list[Finding]:
                     )
 
         # Tenant reference data must be read-only to tenants.
-        for role in (ingest, recon, support):
+        for role in (ingest, recon, support, recon_engine):
             for priv in ("INSERT", "UPDATE", "DELETE"):
                 got = conn.execute(
                     "SELECT has_table_privilege(%s, 'platform_ref.universal_master', %s)",

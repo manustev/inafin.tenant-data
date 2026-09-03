@@ -107,6 +107,16 @@ class FieldConstraint:
     third decimal place but REJECTS an 19-digit value, so precision is the
     half a client must know about."""
 
+    sql_type: str | None = None
+    """The BASE Postgres type behind the column — `format_type` on the type a
+    domain is built over, e.g. `integer`, `numeric`, `text`, `date`. Answers a
+    question `document_type_field.data_type` deliberately does not:
+    `data_type` is the coarse `Kind` a CSV cell parses as (module docstring),
+    so `line_number` and `qty` both publish `text` there on purpose — but a
+    client reading ONLY that column has no way to learn `line_number` is
+    actually an integer or that `qty` actually rejects a fourth decimal
+    place. This is read from `pg_type`, never guessed from the field name."""
+
 
 @dataclass(frozen=True, slots=True)
 class SchemaRule:
@@ -234,20 +244,48 @@ def parse_check(expression: str, *, subject: str, is_integer: bool = False) -> _
     return None
 
 
-#: Published fields, and the table each type's columns live in. DERIVED only:
-#: a DECLARED type's field list comes from a registry grammar cell and owns no
-#: table, so there is no constraint to read and publishing an empty one would
-#: imply the database accepts anything. `document_schema.py`'s `provenance`
-#: already says which is which, so this filter reads it rather than restating
-#: the rule.
+#: Published fields, and the table each type's columns live in. DERIVED types
+#: own a dedicated table; a DECLARED type's field list normally comes from a
+#: registry grammar cell with no table at all, so there is nothing to read —
+#: EXCEPT `ARCHETYPE1_PROMOTE`, whose FIXED envelope columns (`doc_number`,
+#: `hsn_sac`, `gst_rate`, ...) are real, typed columns on the shared
+#: `transaction_document`/`transaction_line` tables (tenant migration 007),
+#: even though the type as a whole is DECLARED because its PER-TYPE additions
+#: (`be_number`, `sez_unit_name`, ...) land in a jsonb `attributes` column
+#: with nothing to derive. `document_type.table_name` is NULL for these
+#: types — they share one pair of tables across all five, not one each — so
+#: `_relation` (below) resolves them to `transaction_document`/
+#: `transaction_line` by scope instead of by name. The per-type jsonb
+#: attributes are included here too, deliberately: `derive_field_constraints`
+#: already publishes an honest all-None `FieldConstraint` for a field with no
+#: matching column, which is exactly right for a jsonb-backed attribute.
 _PUBLISHED_FIELDS = """
-    SELECT f.doc_type_code, f.scope, f.field_name, d.table_name
+    SELECT f.doc_type_code, f.scope, f.field_name, d.table_name, d.dispatch_mechanism
       FROM platform_ref.document_type_field f
       JOIN platform_ref.document_type_schema s USING (doc_type_code)
       JOIN platform_ref.document_type d USING (doc_type_code)
-     WHERE s.provenance = 'DERIVED' AND d.table_name IS NOT NULL
+     WHERE (s.provenance = 'DERIVED' AND d.table_name IS NOT NULL)
+        OR d.dispatch_mechanism = 'ARCHETYPE1_PROMOTE'
      ORDER BY f.doc_type_code, f.ordinal
 """
+
+#: Where an ARCHETYPE1_PROMOTE field's column actually lives, since
+#: `document_type.table_name` is NULL for these types (see above).
+_ARCHETYPE1_TABLE_BY_SCOPE: dict[str, str] = {
+    "HEADER": "transaction_document",
+    _LINE_SCOPE: "transaction_line",
+}
+
+
+def _relation(table: object, scope: str, mechanism: str) -> str:
+    """The table one published field's column actually lives in."""
+    if table is not None:
+        return f"{table}_line" if scope == _LINE_SCOPE else str(table)
+    if mechanism == "ARCHETYPE1_PROMOTE":
+        return _ARCHETYPE1_TABLE_BY_SCOPE[scope]
+    raise AssertionError(  # pragma: no cover — _PUBLISHED_FIELDS excludes this case
+        f"no table for scope={scope!r} mechanism={mechanism!r}"
+    )
 
 #: Per-column type facts. The domain is resolved by name so the published
 #: value is `platform_ref.gstin` rather than its underlying `text`, which is
@@ -266,7 +304,8 @@ _COLUMN_FACTS = """
            information_schema._pg_numeric_scale(
                information_schema._pg_truetypid(a.*, t.*),
                information_schema._pg_truetypmod(a.*, t.*)),
-           bt.typcategory = 'N' AND bt.typname IN ('int2', 'int4', 'int8')
+           bt.typcategory = 'N' AND bt.typname IN ('int2', 'int4', 'int8'),
+           format_type(bt.oid, NULL)
       FROM pg_attribute a
       JOIN pg_class c ON c.oid = a.attrelid
       JOIN pg_namespace n ON n.oid = c.relnamespace
@@ -275,6 +314,46 @@ _COLUMN_FACTS = """
       LEFT JOIN pg_type bt ON bt.oid = COALESCE(NULLIF(t.typbasetype, 0), t.oid)
      WHERE n.nspname = %s AND a.attnum > 0 AND NOT a.attisdropped
        AND c.relname = ANY(%s)
+"""
+
+#: Foreign keys from a published field's table to `platform_ref.universal_master`
+#: — the vocabulary FK pattern `invoice_type`/`supply_type` use instead of a
+#: table CHECK: `<col>_vt text NOT NULL DEFAULT '<Literal>' CHECK (<col>_vt =
+#: '<Literal>')` plus `FOREIGN KEY (<col>_vt, <col>) REFERENCES
+#: universal_master (value_type, value)`. A CHECK-only reading of `pg_constraint`
+#: (the loop above) never sees this vocabulary at all — `contype = 'c'` excludes
+#: it by construction — so a client got no `allowed_values` for `invoice_type`
+#: even though the database enforces one. `conkey`/`confkey` are read
+#: positionally and matched by NAME against the target's own `value_type`/
+#: `value` columns rather than assumed to be declared in that order, since
+#: nothing forces a migration author to write the FK column list in the same
+#: order as the referenced one.
+_TABLE_VOCAB_FKS = """
+    SELECT c.relname,
+           (SELECT array_agg(a.attname ORDER BY k.ord)
+              FROM unnest(con.conkey) WITH ORDINALITY k(att, ord)
+              JOIN pg_attribute a
+                ON a.attrelid = con.conrelid AND a.attnum = k.att),
+           (SELECT array_agg(a.attname ORDER BY k.ord)
+              FROM unnest(con.confkey) WITH ORDINALITY k(att, ord)
+              JOIN pg_attribute a
+                ON a.attrelid = con.confrelid AND a.attnum = k.att)
+      FROM pg_constraint con
+      JOIN pg_class c ON c.oid = con.conrelid
+      JOIN pg_namespace n ON n.oid = c.relnamespace
+     WHERE con.contype = 'f' AND n.nspname = %s AND c.relname = ANY(%s)
+       AND con.confrelid = 'platform_ref.universal_master'::regclass
+"""
+
+#: The currently-active values for one `universal_master` vocabulary, in a
+#: stable order. `to_date > now()` is the same "still in force" reading
+#: `universal_master_window`'s own CHECK (`to_date > from_date`) implies —
+#: a retired code is real history, not something a NEW upload should be told
+#: is acceptable.
+_VOCAB_VALUES = """
+    SELECT value FROM platform_ref.universal_master
+     WHERE value_type = %s AND from_date <= now() AND to_date > now()
+     ORDER BY value
 """
 
 #: Every CHECK on those tables, with the columns it touches. `conkey` is the
@@ -321,10 +400,10 @@ def derive_field_constraints(
     """
     fields = conn.execute(_PUBLISHED_FIELDS).fetchall()
 
-    tables: set[str] = set()
-    for _code, _scope, _name, table in fields:
-        tables.add(str(table))
-        tables.add(f"{table}{'_line'}")
+    tables: set[str] = {
+        _relation(table, str(scope), str(mechanism))
+        for _code, scope, _name, table, mechanism in fields
+    }
     table_list = sorted(tables)
 
     facts: dict[tuple[str, str], tuple[object, ...]] = {
@@ -343,21 +422,52 @@ def derive_field_constraints(
             (str(conname), str(expr), tuple(str(c) for c in cast("list[str]", cols or [])))
         )
 
+    # (table, value column) -> the universal_master value_type it vouches for,
+    # read by matching the FK's local/foreign column pairs by NAME against
+    # `value_type`/`value`, then reading that vt column's own pinning CHECK
+    # (already collected above — it is a plain `<col>_vt = 'Literal'` shape,
+    # the same grammar `parse_check` already reads for a table CHECK).
+    vocab_value_type: dict[tuple[str, str], str] = {}
+    for relname, local_cols, target_cols in conn.execute(
+        _TABLE_VOCAB_FKS, (silver_schema, table_list)
+    ).fetchall():
+        relname = str(relname)
+        targets = cast("list[str]", target_cols)
+        locals_ = cast("list[str]", local_cols)
+        pairs = dict(zip(targets, locals_, strict=True))
+        vt_col, value_col = pairs.get("value_type"), pairs.get("value")
+        if vt_col is None or value_col is None:
+            continue
+        for _conname, expr, cols in checks.get(relname, ()):
+            if cols != (vt_col,):
+                continue
+            if (m := _RE_EQ.match(_strip_parens(_normalise(expr)))) and m.group("col") == vt_col:
+                vocab_value_type[(relname, value_col)] = m.group("val").replace("''", "'")
+
+    vocab_values: dict[str, tuple[str, ...]] = {
+        value_type: tuple(
+            str(r[0]) for r in conn.execute(_VOCAB_VALUES, (value_type,)).fetchall()
+        )
+        for value_type in sorted(set(vocab_value_type.values()))
+    }
+
     # Which (table, column) pairs a tenant actually supplies. A constraint is
     # published only if EVERY column it touches is in here — see the module
     # docstring on envelope exclusion.
     published: set[tuple[str, str]] = set()
     field_table: dict[tuple[str, str, str], str] = {}
-    for code, scope, name, table in fields:
-        rel = f"{table}_line" if scope == _LINE_SCOPE else str(table)
+    code_relations: dict[str, set[str]] = {}
+    for code, scope, name, table, mechanism in fields:
+        rel = _relation(table, str(scope), str(mechanism))
         published.add((rel, str(name)))
         field_table[(str(code), str(scope), str(name))] = rel
+        code_relations.setdefault(str(code), set()).add(rel)
 
     constraints: list[FieldConstraint] = []
     seen_rules: set[tuple[str, str]] = set()
     rules: list[SchemaRule] = []
 
-    for code, scope, name, _table in fields:
+    for code, scope, name, _table, _mechanism in fields:
         code, scope, name = str(code), str(scope), str(name)
         rel = field_table[(code, scope, name)]
         fact = facts.get((rel, name))
@@ -369,10 +479,10 @@ def derive_field_constraints(
             constraints.append(FieldConstraint(code, scope, name))
             continue
 
-        domain, max_len, precision, scale, is_int = fact
-        # psycopg types a heterogeneous row as object; these five come
-        # from known catalog columns, so the casts assert what the query
-        # already guarantees rather than papering over an unknown.
+        domain, max_len, precision, scale, is_int, sql_type = fact
+        # psycopg types a heterogeneous row as object; these come from known
+        # catalog columns, so the casts assert what the query already
+        # guarantees rather than papering over an unknown.
         max_len = cast("int | None", max_len)
         precision = cast("int | None", precision)
         scale = cast("int | None", scale)
@@ -380,6 +490,9 @@ def derive_field_constraints(
 
         if domain is not None and (dc := domain_checks.get(str(domain))):
             shape = _merge(shape, parse_check(dc, subject="VALUE", is_integer=bool(is_int)))
+
+        if (value_type := vocab_value_type.get((rel, name))) is not None:
+            shape = _merge(shape, _Shape(allowed_values=vocab_values.get(value_type, ())))
 
         for conname, expr, cols in checks.get(rel, ()):
             if cols != (name,):
@@ -405,15 +518,19 @@ def derive_field_constraints(
                 max_length=int(max_len) if max_len is not None else None,
                 numeric_precision=int(precision) if precision is not None else None,
                 numeric_scale=int(scale) if scale is not None else None,
+                sql_type=str(sql_type) if sql_type is not None else None,
             )
         )
 
     # Multi-column checks, once per (type, constraint). Every column must be
     # one the tenant supplies: `valid_to > valid_from` is real and is not
-    # theirs to satisfy.
-    for code, _scope, _name, table in fields:
-        code = str(code)
-        for rel in (str(table), f"{table}_line"):
+    # theirs to satisfy. Iterated over the RELATIONS actually seen for this
+    # code (`code_relations`) rather than a `(table, table_line)` guess —
+    # ARCHETYPE1_PROMOTE's tables are named `transaction_document`/
+    # `transaction_line`, not `<table>`/`<table>_line`, so that guess would
+    # silently miss its line-table checks (e.g. `line_number > 0`).
+    for code in code_relations:
+        for rel in code_relations[code]:
             for conname, expr, cols in checks.get(rel, ()):
                 if len(cols) < 2 or (code, conname) in seen_rules:
                     continue

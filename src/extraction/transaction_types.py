@@ -8,14 +8,18 @@ real specimens (streamed-marinating-gray.md's verification method):
   * **A4.08 fully extracts.** Every fact `validate_transaction_csv` needs
     (freight amount, the RCM-computed GST, the consignment note number/date,
     the GTA's own GSTIN) is a clean `Label: Value` line.
-  * **A6.01 legitimately does not.** `taxable_value`/`igst_amount` sit in a
+  * **A6.01 now fully extracts too.** `taxable_value`/`igst_amount` sit in a
     two-column "Particular / Amount" table with NO colon between label and
     figure — pypdf's flattened text renders it as
-    `"Assessable (Customs) Value 1,24,50,000"`, which the `Label: Value`
-    grammar correctly does not match. This is the same accepted tier-1
-    limitation named throughout this batch (a table is not a label:value
-    line), not a bug — `test_extraction_transaction.py` asserts the specific
-    named `Partial`.
+    `"Assessable (Customs) Value 1,24,50,000"`. This was an accepted tier-1
+    limitation until a follow-up ERP upload E2E report (2026-09-02) asked
+    for it directly: `labelvalue.py`'s `_find_value` gained a second,
+    colon-less matching mode for `money` fields specifically — label at line
+    start, a money-shaped token at line end, arbitrary prose between (so
+    `"IGST @ 18% (on value + BCD) 24,05,595"` binds against the label
+    `"IGST"` without the rate needing to be part of the label). See that
+    module for the grammar; `test_extraction_transaction.py` now asserts
+    `Extracted`, not `Partial`.
 
 Corrective refactor (2026-08-11): `doc_type_code` and `label_spec` used to be
 `ClassVar`s here. They are now constructor arguments — set by `platform_ref.
@@ -87,16 +91,12 @@ class GtaConsignmentNoteExtractor(TransactionDocumentExtractor):
 
 class BillOfEntryExtractor(TransactionDocumentExtractor):
     """`doc_type_code`/`label_spec` come from the registry (`BILL_OF_ENTRY`'s
-    `extraction_spec` cell, `registry/document_types.csv`) — note that the
-    `taxable_value`/`igst_amount` fields are declared required there, so the
-    extraction honestly reports what tier-1 cannot bind (both sit in a
-    colon-less "Particular / Amount" table in every specimen seen — see
-    module docstring) rather than silently promoting a document with a
-    fabricated customs value."""
+    `extraction_spec` cell, `registry/document_types.csv`). `taxable_value`/
+    `igst_amount` are declared required there and now bind cleanly against
+    the colon-less "Particular / Amount" table every specimen uses —
+    `labelvalue.py`'s table-row matching for `money` fields (see module
+    docstring)."""
 
-    # Unreachable against the current specimen (always Partial — see module
-    # docstring) but implemented for when a BoE with a genuine Label: Value
-    # amount table arrives.
     def _csv_row(self, fields: dict[str, object]) -> tuple[dict[str, str], dt.date]:
         doc_date = cast("dt.date", fields["doc_date"])
         taxable = Decimal(cast("str", fields["taxable_value"]))
