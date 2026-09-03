@@ -65,6 +65,28 @@ tied to `t_<slug>_gold`'s lifecycle now.
   tooling they run against it. This repo does not govern that DDL's shape,
   the same way it does not govern `inafinplatform/v2`'s Gold table shapes.
 
+## Follow-up: apply_tenant_grants stopped managing table-level privileges inside the schema
+
+Shared migration `062`, same day. The moment the engine exercised the
+`CREATE` grant from `061` and created its own tables (`analysis_run`,
+`evidence_record`, `assessment`, ... — all owned by `t_<slug>_recon_engine`,
+not `tenant_migrate`), `apply_tenant_grants`'s blanket `REVOKE ALL ON ALL
+TABLES IN SCHEMA t_<slug>_reconciliation` broke `make migrate` outright:
+Postgres requires object ownership (or `GRANT OPTION`) to `REVOKE`/`GRANT`
+on a table, and `tenant_migrate` has neither on a table it did not create.
+
+This was foreseeable in hindsight — "the engine owns table DDL inside its
+own schema" and "tenant-data's grant function keeps self-healing every
+table in that schema" are in direct tension the moment the first table
+actually gets created. `062` resolves it by having `apply_tenant_grants`
+only ever touch the reconciliation schema at the SCHEMA level (`USAGE`,
+`CREATE` — controlled by schema ownership, which `tenant_migrate` does
+hold) and never enumerate or grant/revoke individual tables inside it.
+Table-level privileges inside `t_<slug>_reconciliation` are entirely a
+function of Postgres ownership from here — created-by-`recon_engine` means
+owned-by-`recon_engine` means full privileges already, with nothing for
+this repo to assert or revoke.
+
 ## Consequences
 
 - `inafin-reconciliation-engine` is isolated from `inafinplatform/v2`/
