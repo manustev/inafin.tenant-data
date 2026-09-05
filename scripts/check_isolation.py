@@ -371,6 +371,38 @@ def check(conn: psycopg.Connection[tuple[object, ...]]) -> list[Finding]:
                                 f"{role} has {priv} on platform_ref.universal_master")
                     )
 
+        # Shared migration 064: v1_ref02_notified_rcm_category is a deliberate
+        # exception to platform_ref's own norm (universal_master/hsn_master/...
+        # are granted directly as base tables) — the request asked for the
+        # same "base table never granted" lineage discipline every Silver v1_
+        # contract already gets. No tenant role may write it, and none may
+        # read the base table directly — only through the view.
+        for role in (ingest, recon, support, recon_engine):
+            for priv in ("INSERT", "UPDATE", "DELETE"):
+                got = conn.execute(
+                    "SELECT has_table_privilege(%s, "
+                    "'platform_ref.ref02_notified_rcm_category', %s)",
+                    (role, priv),
+                ).fetchone()
+                if got and got[0]:
+                    findings.append(
+                        Finding("platform-ref-read-only", "CRITICAL",
+                                f"{role} has {priv} on "
+                                f"platform_ref.ref02_notified_rcm_category")
+                    )
+            got = conn.execute(
+                "SELECT has_table_privilege(%s, "
+                "'platform_ref.ref02_notified_rcm_category', 'SELECT')",
+                (role,),
+            ).fetchone()
+            if got and got[0]:
+                findings.append(
+                    Finding("ref02-category-view-only", "CRITICAL",
+                            f"{role} has direct SELECT on "
+                            f"platform_ref.ref02_notified_rcm_category — "
+                            f"only the v1_ view should ever be granted")
+                )
+
     return findings
 
 

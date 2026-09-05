@@ -142,3 +142,37 @@ Five fixture scenarios seeded on Acme, as requested:
 
 Not yet done: Globex fixtures (schema/view exist there, no rows seeded —
 say if you need them).
+
+## 8. PRIM-07 — `v1_ref02_notified_rcm_category` — schema/grants built, real content blocked
+
+Full review: `docs/adr/0003`. Short version:
+
+- **Built**: `platform_ref.ref02_notified_rcm_category` +
+  `platform_ref.v1_ref02_notified_rcm_category` (shared migration `064`).
+  Platform-wide, not per-tenant — there's no `entity_id`/`gstin` in your
+  requested shape, and RCM law doesn't vary by tenant, so this isn't a
+  per-tenant Gold table like `tenant_setting`/`gl_category_bridge`.
+  `t_acme_recon_engine` and `t_globex_recon_engine` both already see it
+  (verified) — that's correct, not a leak, since `platform_ref_reader`
+  membership already covers every tenant role.
+- **Contract rule 3 (no overlapping APPROVED windows) is enforced at the DB
+  level**, not just documented — a Postgres `EXCLUDE` constraint, mutation-
+  tested by actually inserting an overlapping row and confirming Postgres
+  rejects it.
+- **Contract rule 5 (view-only, base table never granted) is enforced and
+  gated** — a base-table grant would now fail an automated isolation check,
+  not just a review.
+- **Not done: real category content.** Checked this workspace end to end —
+  no citable RCM/reverse-charge notification text exists here to transcribe
+  from (same gap `hsn_master`/`sac_master` already had and is still open
+  about). We will not fabricate a `threshold_amount` or
+  `trigger_rate_percent` that looks plausible — this is compliance data with
+  a real consequence if wrong, not client config. **Please supply an actual
+  notification citation** (a real CGST notification number + text, or a
+  pointer to where your team already has one) and we'll seed real rows —
+  that's a data-only follow-up, no schema change needed.
+- **Test fixtures for the negative case (overlap) were built using a
+  clearly-synthetic `TEST_`-prefixed category code**, proving the
+  constraint mechanism works — not standing in for real RCM category data.
+  The "approved effective / future / superseded" positive fixtures are not
+  seeded for the same reason: there is no real category to seed yet.
